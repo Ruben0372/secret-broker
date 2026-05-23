@@ -11,7 +11,8 @@
 # This script:
 #   1. Stores the secret in macOS Keychain (encrypted, never on disk)
 #   2. Automatically adds it to the SECRETS array in load-secrets.sh
-#   3. Tells you to re-source load-secrets.sh to pick it up
+#   3. Documents the secret in .env (comment only, no plaintext value)
+#   4. Tells you to re-source load-secrets.sh to pick it up
 #
 # CONVENTION:
 #   Service name (-s) = env var name
@@ -21,6 +22,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOADER="$SCRIPT_DIR/load-secrets.sh"
+ENVFILE="$SCRIPT_DIR/.env"
 ACCOUNT="$(whoami)"
 
 # =========================================================================
@@ -85,6 +87,29 @@ unregister_secret() {
     echo "[add-secret] Removed $var from load-secrets.sh"
 }
 
+# Add a documentation comment to .env
+document_in_env() {
+    local var="$1"
+    [ ! -f "$ENVFILE" ] && return
+    # Skip if already documented
+    if grep -q "^# ${var} " "$ENVFILE" 2>/dev/null; then
+        echo "[add-secret] $var already documented in .env"
+        return
+    fi
+    echo "# ${var} -- loaded from macOS Keychain via load-secrets.sh" >> "$ENVFILE"
+    echo "[add-secret] Documented $var in .env"
+}
+
+# Remove documentation comment from .env
+undocument_from_env() {
+    local var="$1"
+    [ ! -f "$ENVFILE" ] && return
+    if grep -q "^# ${var} " "$ENVFILE" 2>/dev/null; then
+        sed -i '' "/^# ${var} /d" "$ENVFILE"
+        echo "[add-secret] Removed $var documentation from .env"
+    fi
+}
+
 # =========================================================================
 # COMMANDS
 # =========================================================================
@@ -131,6 +156,8 @@ case "${1:-}" in
         fi
         # Remove from registry
         unregister_secret "$VAR_NAME"
+        # Remove .env documentation
+        undocument_from_env "$VAR_NAME"
         echo ""
         echo "Done. Re-source load-secrets.sh to apply: source $LOADER"
         ;;
@@ -176,6 +203,9 @@ case "${1:-}" in
 
         # Register in load-secrets.sh
         register_secret "$VAR_NAME"
+
+        # Document in .env
+        document_in_env "$VAR_NAME"
 
         echo ""
         echo "Done. To activate: source $LOADER"
