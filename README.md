@@ -191,6 +191,27 @@ secret-broker/
   README.md          # You are here
 ```
 
+## Limitations
+
+Secret Broker solves the **storage** problem: secrets live in an encrypted OS vault instead of plaintext files. But it does not solve the **access control** problem.
+
+When you `source load-secrets.sh`, every secret in the registry is exported to the shell environment. Any process in that session, including AI agents, can read **all** of them. There is no per-agent scoping, no "this agent only gets these 3 secrets," and no audit trail of which process read what.
+
+In practical terms:
+
+| What Secret Broker does            | What it does NOT do                        |
+|-------------------------------------|--------------------------------------------|
+| Removes secrets from disk           | Restrict which secrets an agent can see     |
+| Encrypts at rest via Keychain       | Scope secrets per agent or per task         |
+| Prevents leaks in git/shell history | Provide agent identity or authentication    |
+| Blocks filesystem-level discovery   | Audit which process accessed which secret   |
+
+The agent authenticates as **you** -- your macOS username, your Keychain. If it can run in your shell, it can read everything you loaded.
+
+For most individual developers, this is a massive improvement over `.env` files. But for teams running multiple agents, or for agents that should only see a subset of credentials, you need an access control layer on top of the storage layer.
+
+This is the gap that sandboxed execution environments fill: the agent runs in an isolated VM and only receives the specific secrets you explicitly pass to it. The Keychain stays out of reach.
+
 ## Contributing
 
 Found a bug or want to extend Secret Broker to other platforms (Linux keyring, Windows Credential Manager)? PRs welcome.
