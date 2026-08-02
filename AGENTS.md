@@ -2,7 +2,7 @@
 Generated file. Do not edit by hand.
 Policy: armel-agents/v1
 Repository: Ruben0372/secret-broker
-Source digest: a9fde64f88e66c1ce57d755d14bbe6a2b8776b3cf6b56241e5921815dfd9588c
+Source digest: dc7695474448d26a519207acfbb94bfb2927200a8a6b9b8c21c4880f81598f12
 -->
 
 # Secret Broker Agent Operating Guide
