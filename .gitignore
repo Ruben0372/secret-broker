@@ -1,0 +1,23 @@
+# Secrets: never commit these. Secret Broker exists so they live in the
+# Keychain instead of on disk, but this is the safety net if one slips out.
+.env
+*.env
+.env.*
+*.key
+*.pem
+*.secret
+credentials*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

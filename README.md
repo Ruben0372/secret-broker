@@ -173,7 +173,7 @@ Addresses three OWASP Top 10 for LLM Applications (2025) categories:
 - **LLM06 -- Excessive Agency:** Agents operate without direct credential access
 - **LLM07 -- System Prompt Leakage:** No credentials in config files that might be ingested as context
 
-For the full security analysis, see the [research paper](https://github.com/Ruben0372/case-study-securing-ai-environments).
+The full security analysis is part of an ongoing Securing AI Environments research project.
 
 ## Requirements
 
@@ -230,4 +230,4 @@ Apache 2.0. See [LICENSE](LICENSE) for details.
 
 **Ruben Yomenou**
 
-Part of the [Securing AI Environments](https://github.com/Ruben0372/case-study-securing-ai-environments) research project.
+Part of an ongoing Securing AI Environments research project.
