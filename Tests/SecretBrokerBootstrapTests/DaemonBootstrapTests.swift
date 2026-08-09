@@ -91,8 +91,12 @@ struct DaemonBootstrapTests {
         // Regeneration discipline must stay stated: a blind refresh would
         // adopt whatever capability was just introduced.
         #expect(PackageGovernance.enforcementModel.contains("reviewed act"))
-        #expect(PackageGovernance.enforcementModel.contains("pinned CI toolchain"))
         #expect(PackageGovernance.enforcementModel.contains("never a casual refresh"))
+        // Per-identity keying and the three failure classes must stay stated.
+        #expect(PackageGovernance.enforcementModel.contains("keyed by the Swift version and target triple"))
+        #expect(PackageGovernance.enforcementModel.contains("unreviewed toolchain"))
+        #expect(PackageGovernance.enforcementModel.contains("never falls back"))
+        #expect(PackageGovernance.enforcementModel.contains("three distinct classes"))
         // The residual limit must stay stated, and no record may claim the
         // boundary is airtight.
         #expect(PackageGovernance.enforcementModel.contains("selector stubs are not the primary signal"))

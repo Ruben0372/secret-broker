@@ -23,10 +23,17 @@ public enum PackageGovernance {
     best-effort review aid, not a control, because it matches text and \
     ordinary Swift can evade it.
 
-    Golden files: regenerating a golden symbol allowlist is a reviewed act \
-    performed under the pinned CI toolchain and reviewed symbol by symbol. It \
-    is never a casual refresh, because a blind regeneration adopts whatever \
-    capability was just introduced and reports success.
+    Golden files: symbol sets are only comparable within one compiler \
+    identity, so each golden is keyed by the Swift version and target triple \
+    that produced it. A build under an identity with no committed golden fails \
+    loudly as an unreviewed toolchain and never falls back to another \
+    identity's file. Regenerating or adding a golden is a reviewed act \
+    performed under the matching toolchain and reviewed symbol by symbol, \
+    never a casual refresh, because a blind regeneration adopts whatever \
+    capability was just introduced and reports success. Failures are reported \
+    in three distinct classes, new capability symbol, toolchain drift in \
+    runtime or autolink classes, and unreviewed toolchain identity, so the \
+    control cannot decay into noise that gets refreshed away.
 
     Honest limits: the artifact check is macOS and Objective-C interop \
     specific. The stable signal is the _OBJC_CLASS_$_ class reference; \

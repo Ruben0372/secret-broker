@@ -19,6 +19,44 @@ enum BootstrapTestSupport {
         buildDirectory.appendingPathComponent("Modules")
     }
 
+    /// Canonical identity of the compiler that produced the artifacts: the
+    /// Swift version plus the target triple. Symbol sets are only comparable
+    /// within one identity, so goldens are keyed by it.
+    struct ToolchainIdentity {
+        let swiftVersion: String
+        let target: String
+
+        /// Filename-safe key, for example swift-6.3.2-arm64-apple-macosx26.0.
+        var slug: String { "swift-\(swiftVersion)-\(target)" }
+        var description: String { "Apple Swift \(swiftVersion), target \(target)" }
+    }
+
+    /// Returns nil when the version output cannot be parsed, so callers fail
+    /// loudly rather than guessing an identity.
+    static let toolchainIdentity: ToolchainIdentity? = {
+        guard let result = try? run(["swift", "--version"]) else { return nil }
+        let text = result.stdout + result.stderr
+
+        func firstMatch(_ pattern: String) -> String? {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            let range = NSRange(text.startIndex..<text.endIndex, in: text)
+            guard let match = regex.firstMatch(in: text, range: range),
+                  match.numberOfRanges > 1,
+                  let captured = Range(match.range(at: 1), in: text)
+            else {
+                return nil
+            }
+            return String(text[captured])
+        }
+
+        guard let version = firstMatch(#"Apple Swift version ([0-9]+(?:\.[0-9]+)*)"#),
+              let target = firstMatch(#"Target:\s*(\S+)"#)
+        else {
+            return nil
+        }
+        return ToolchainIdentity(swiftVersion: version, target: target)
+    }()
+
     /// Repository root, derived from this file's location so the suite works
     /// from any working directory, including CI checkouts.
     static let packageRoot: URL = URL(fileURLWithPath: #filePath)

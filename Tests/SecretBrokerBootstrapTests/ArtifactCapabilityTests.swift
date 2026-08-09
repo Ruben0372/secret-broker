@@ -78,13 +78,45 @@ struct ArtifactCapabilityTests {
             .filter { !$0.isEmpty && !$0.hasSuffix(":") }
     }
 
-    static func goldenSymbols(for module: String) throws -> Set<String> {
-        let url = BootstrapTestSupport.packageRoot
+    /// How a symbol absent from the golden should be read. The three classes
+    /// carry different meanings and must not be reported identically, or the
+    /// security failure decays into noise that gets refreshed away.
+    enum SymbolClass {
+        case capability
+        case toolchainDrift
+        case unclassified
+    }
+
+    static func classify(_ symbol: String) -> SymbolClass {
+        for needle in forbiddenNeedles where symbol.contains(needle) {
+            return .capability
+        }
+        // Autolink directives and compiler or stdlib runtime entry points vary
+        // between toolchains and carry no capability of their own.
+        let driftPrefixes = ["__swift_FORCE_LOAD_$_", "_swift_", "___", "_$s"]
+        for prefix in driftPrefixes where symbol.hasPrefix(prefix) {
+            return .toolchainDrift
+        }
+        return .unclassified
+    }
+
+    static func goldenURL(for module: String, identity: BootstrapTestSupport.ToolchainIdentity) -> URL {
+        BootstrapTestSupport.packageRoot
             .appendingPathComponent("Tests")
             .appendingPathComponent("SecretBrokerBootstrapTests")
             .appendingPathComponent("Golden")
-            .appendingPathComponent("\(module).symbols.txt")
-        let text = try String(contentsOf: url, encoding: .utf8)
+            .appendingPathComponent("\(module).symbols.\(identity.slug).txt")
+    }
+
+    /// Golden set for the running toolchain, or nil when this identity has no
+    /// reviewed golden. Callers must fail loudly on nil, never fall back.
+    static func goldenSymbols(
+        for module: String,
+        identity: BootstrapTestSupport.ToolchainIdentity
+    ) -> Set<String>? {
+        guard let text = try? String(contentsOf: goldenURL(for: module, identity: identity), encoding: .utf8) else {
+            return nil
+        }
         return Set(
             text
                 .split(separator: "\n")
@@ -95,44 +127,90 @@ struct ArtifactCapabilityTests {
 
     @Test("Every undefined symbol is in the reviewed golden allowlist", arguments: modules)
     func symbolsStayWithinGoldenAllowlist(module: String) throws {
+        let identity = try #require(
+            BootstrapTestSupport.toolchainIdentity,
+            "UNREADABLE TOOLCHAIN: could not parse swift --version, so no golden can be selected. Failing closed."
+        )
         let symbols = try Self.undefinedSymbols(for: module)
         #expect(
             !symbols.isEmpty,
             "no undefined symbols read for \(module); the scan found nothing and would pass vacuously"
         )
-        let golden = try Self.goldenSymbols(for: module)
-        #expect(!golden.isEmpty, "golden allowlist for \(module) is empty")
+
+        guard let golden = Self.goldenSymbols(for: module, identity: identity) else {
+            Issue.record(
+                """
+                UNREVIEWED TOOLCHAIN: no golden symbol allowlist exists for \(identity.description). \
+                Expected \(Self.goldenURL(for: module, identity: identity).lastPathComponent). \
+                Symbol sets are only comparable within one compiler identity, so this build cannot be \
+                checked and is failing closed rather than falling back to another toolchain's golden. \
+                Producing a golden for a new identity is a reviewed act: generate it under that \
+                toolchain and review every symbol before committing it.
+                """
+            )
+            return
+        }
 
         let observed = Set(symbols)
         let unexpected = observed.subtracting(golden).sorted()
-        #expect(
-            unexpected.isEmpty,
-            """
-            NEW SYMBOLS: \(module) imports \(unexpected.count) symbol(s) absent from the reviewed \
-            golden allowlist: \(unexpected.prefix(20).joined(separator: ", ")). \
-            Treat this as a capability finding until proven otherwise. If it is an intended \
-            dependency or toolchain change, regenerating the golden file is a reviewed act under \
-            the pinned CI toolchain, reviewed symbol by symbol, never a casual refresh.
-            """
-        )
+        if !unexpected.isEmpty {
+            let capability = unexpected.filter { Self.classify($0) == .capability }
+            let drift = unexpected.filter { Self.classify($0) == .toolchainDrift }
+            let unclassified = unexpected.filter { Self.classify($0) == .unclassified }
+
+            if !capability.isEmpty {
+                Issue.record(
+                    """
+                    NEW CAPABILITY SYMBOL: \(module) imports \(capability.count) symbol(s) matching a \
+                    forbidden capability family: \(capability.prefix(20).joined(separator: ", ")). \
+                    This is a security finding. Do not regenerate the golden to make it pass.
+                    """
+                )
+            }
+            if !drift.isEmpty {
+                Issue.record(
+                    """
+                    TOOLCHAIN DRIFT: \(module) imports \(drift.count) runtime or autolink symbol(s) not in \
+                    the golden for \(identity.description): \(drift.prefix(20).joined(separator: ", ")). \
+                    These classes carry no capability. This usually means the golden was produced under a \
+                    different compiler than the one that built these artifacts. Confirm the identity key \
+                    before regenerating.
+                    """
+                )
+            }
+            if !unclassified.isEmpty {
+                Issue.record(
+                    """
+                    NEW UNCLASSIFIED SYMBOL: \(module) imports \(unclassified.count) symbol(s) that are \
+                    neither known capability families nor runtime and autolink classes: \
+                    \(unclassified.prefix(20).joined(separator: ", ")). Treat as a capability finding \
+                    until reviewed.
+                    """
+                )
+            }
+        }
 
         // Staleness, the opposite direction: a golden listing symbols the module
-        // no longer imports is out of date, and a stale file is how a wrong or
-        // wrongly-pathed golden passes review unnoticed.
+        // no longer imports no longer describes this build.
         let orphaned = golden.subtracting(observed).sorted()
         #expect(
             orphaned.isEmpty,
             """
-            STALE GOLDEN: the allowlist for \(module) lists \(orphaned.count) symbol(s) the module \
-            no longer imports: \(orphaned.prefix(20).joined(separator: ", ")). This is not a \
-            capability finding; it means the golden file no longer describes this build.
+            STALE GOLDEN: the allowlist for \(module) under \(identity.description) lists \
+            \(orphaned.count) symbol(s) the module no longer imports: \
+            \(orphaned.prefix(20).joined(separator: ", ")). This is not a capability finding; the \
+            golden file no longer describes this build.
             """
         )
     }
 
     @Test("Golden allowlist is wired to the right module and cannot pass empty", arguments: modules)
     func goldenIsWiredCorrectly(module: String) throws {
-        let golden = try Self.goldenSymbols(for: module)
+        let identity = try #require(BootstrapTestSupport.toolchainIdentity)
+        let golden = try #require(
+            Self.goldenSymbols(for: module, identity: identity),
+            "UNREVIEWED TOOLCHAIN: no golden for \(identity.description); failing closed rather than falling back"
+        )
         #expect(!golden.isEmpty, "golden allowlist for \(module) is empty and would pass anything")
         #expect(
             golden.count > 20,
