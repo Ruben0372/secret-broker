@@ -1,0 +1,82 @@
+=== ARM-5 correction-2 final verification, head 6ed1e60f1db8f1cfdfa86d097d71590308315bd1 ===
+repo: /Users/rubenyomenou/projects/local harness/.worktrees/secret-broker-ARM-5
+
+[baseline default] expect pass (default build dir)
+  baseline default: exit=0  ✔ Test run with 35 tests in 7 suites passed after 0.163 seconds.
+
+[baseline scratch] expect pass (scratch build dir)
+  baseline scratch: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.170 seconds with 6 issues.
+
+[probe A default] expect fail (default build dir)
+            token hygiene clean
+  probe A default: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.163 seconds with 2 issues.
+
+[probe A scratch] expect fail (scratch build dir)
+            token hygiene clean
+  probe A scratch: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.213 seconds with 6 issues.
+
+[probe A-prime default] expect fail (default build dir)
+            token hygiene clean
+  probe A-prime default: exit=0  ✔ Test run with 35 tests in 7 suites passed after 0.214 seconds.
+
+[probe A-prime scratch] expect fail (scratch build dir)
+            token hygiene clean
+  probe A-prime scratch: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.165 seconds with 6 issues.
+
+[probe B] expect fail (default build dir)
+      probe-b applied: SecretBrokerAdapters exported as a library product
+  probe B: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.170 seconds with 2 issues.
+
+[probe C] expect fail (default build dir)
+      probe-c applied: plaintext operation on the seam
+      probe-c applied: reveal case and value-carrying type
+      probe-c applied: fakes conform to the widened seam
+      probe-c: digest helper call form detected as digest(of: reference)
+      probe-c applied: daemon value-returning method and reveal dispatch
+  probe C: exit=1  ✘ Test run with 35 tests in 7 suites failed after 0.183 seconds with 6 issues.
+
+[probe D] expect fail (default build dir)
+      probe-d applied: sibling seam protocol outside the pinned block
+      probe-d applied: fake conforming to the sibling seam
+      probe-d applied: static value-returning daemon entry point
+  probe D: exit=0  ✔ Test run with 35 tests in 7 suites passed after 0.177 seconds.
+
+[golden blanked] expect fail (default build dir)
+  HARNESS ERROR: setup did not apply
+      no golden files found; cannot run this red cycle
+
+[golden removed] expect fail (default build dir)
+  HARNESS ERROR: setup did not apply
+      no Golden directory found; cannot run this red cycle
+
+[golden drifted] expect fail (default build dir)
+  HARNESS ERROR: setup did not apply
+      no golden file found; cannot run this red cycle
+
+=== three-way failure message distinction ===
+  capability:            [25/28] Compiling SecretBrokerBootstrapTests ArtifactCapabilityTests.swift
+◇ Suite "Artifact capability" started.
+  toolchain drift:       <no output>
+  unreviewed identity:   <no output>
+  (these three must read differently; identical text means the distinction is not implemented)
+
+=== F2 keyed-digest tests present and executed ===
+  present: stable
+  present: differ
+  present: unsalted
+  present: Distinct references
+  present: key, salt, or nonce
+
+=== verdict ===
+  baseline default         OK
+  baseline scratch         MISS (should pass, failed)
+  probe A default          OK (caught)
+  probe A scratch          OK (caught)
+  probe A-prime default    MISS (should fail, passed)
+  probe A-prime scratch    OK (caught)
+  probe B                  OK (caught)
+  probe C                  OK (caught)
+  probe D                  MISS (should fail, passed)
+  golden blanked           INCONCLUSIVE (harness error)
+  golden removed           INCONCLUSIVE (harness error)
+  golden drifted           INCONCLUSIVE (harness error)

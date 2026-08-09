@@ -1,0 +1,13 @@
+load-secrets.sh
+add-secret.sh
+find-generic-password
+security find
+Process(
+NSTask
+posix_spawn
+system(
+setenv
+putenv
+processInfo.environment
+import Security
+SecItem
