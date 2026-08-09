@@ -17,13 +17,20 @@ public struct BootstrapReport: Sendable, Equatable {
 /// proves the redacted receipt path with fakes.
 public struct DaemonBootstrap: Sendable {
     private let custodian: any SecretCustodian
-    /// Per-boot receipt key. Random, memory only, never persisted, logged, or
-    /// exported, and discarded when the daemon process ends.
+    /// Receipt key for this daemon. Defaults to the process-wide key, so
+    /// receipts correlate across instances within one process lifetime and are
+    /// unlinkable across restarts. See ReceiptKeyStore.
     private let receiptKey: SymmetricKey
 
     public init(custodian: any SecretCustodian) {
+        self.init(custodian: custodian, receiptKey: ReceiptKeyStore.processKey)
+    }
+
+    /// Explicit-key initialiser, used by tests to prove the key factory is
+    /// random. Deliberately not public: a caller must not choose the key.
+    init(custodian: any SecretCustodian, receiptKey: SymmetricKey) {
         self.custodian = custodian
-        self.receiptKey = SymmetricKey(size: .bits256)
+        self.receiptKey = receiptKey
     }
 
     public func start() -> BootstrapReport {

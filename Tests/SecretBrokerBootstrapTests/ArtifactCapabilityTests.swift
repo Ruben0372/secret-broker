@@ -46,14 +46,18 @@ struct ArtifactCapabilityTests {
         ]
     }
 
+    /// Searches the active build directory, derived from this test bundle's own
+    /// location, so a custom --scratch-path is honoured instead of quietly
+    /// scanning nothing.
     static func artifacts(for module: String) throws -> [String] {
+        let buildDirectory = BootstrapTestSupport.buildDirectory.path
         let objects = try BootstrapTestSupport.run([
-            "find", ".build",
+            "find", buildDirectory,
             "-name", "*.o",
             "-path", "*\(module).build*",
         ])
         let archives = try BootstrapTestSupport.run([
-            "find", ".build",
+            "find", buildDirectory,
             "-name", "lib\(module)*.a",
         ])
         return (objects.stdout + archives.stdout)
@@ -99,15 +103,47 @@ struct ArtifactCapabilityTests {
         let golden = try Self.goldenSymbols(for: module)
         #expect(!golden.isEmpty, "golden allowlist for \(module) is empty")
 
-        let unexpected = Set(symbols).subtracting(golden).sorted()
+        let observed = Set(symbols)
+        let unexpected = observed.subtracting(golden).sorted()
         #expect(
             unexpected.isEmpty,
             """
-            \(module) imports \(unexpected.count) symbol(s) absent from the reviewed golden allowlist: \
-            \(unexpected.prefix(20).joined(separator: ", ")). \
-            If this is an intended dependency change, regenerating the golden file is a reviewed act \
-            under the pinned CI toolchain, reviewed symbol by symbol, never a casual refresh.
+            NEW SYMBOLS: \(module) imports \(unexpected.count) symbol(s) absent from the reviewed \
+            golden allowlist: \(unexpected.prefix(20).joined(separator: ", ")). \
+            Treat this as a capability finding until proven otherwise. If it is an intended \
+            dependency or toolchain change, regenerating the golden file is a reviewed act under \
+            the pinned CI toolchain, reviewed symbol by symbol, never a casual refresh.
             """
+        )
+
+        // Staleness, the opposite direction: a golden listing symbols the module
+        // no longer imports is out of date, and a stale file is how a wrong or
+        // wrongly-pathed golden passes review unnoticed.
+        let orphaned = golden.subtracting(observed).sorted()
+        #expect(
+            orphaned.isEmpty,
+            """
+            STALE GOLDEN: the allowlist for \(module) lists \(orphaned.count) symbol(s) the module \
+            no longer imports: \(orphaned.prefix(20).joined(separator: ", ")). This is not a \
+            capability finding; it means the golden file no longer describes this build.
+            """
+        )
+    }
+
+    @Test("Golden allowlist is wired to the right module and cannot pass empty", arguments: modules)
+    func goldenIsWiredCorrectly(module: String) throws {
+        let golden = try Self.goldenSymbols(for: module)
+        #expect(!golden.isEmpty, "golden allowlist for \(module) is empty and would pass anything")
+        #expect(
+            golden.count > 20,
+            "golden allowlist for \(module) has only \(golden.count) entries, too few to be a real module dump"
+        )
+        // An anchor that must be present in any real Swift module dump. A golden
+        // read from the wrong path, or truncated, fails here rather than
+        // silently permitting whatever the module imports.
+        #expect(
+            golden.contains { $0.contains("Swift") || $0.contains("Foundation") },
+            "golden allowlist for \(module) contains no stdlib or Foundation symbol; it is not this module's dump"
         )
     }
 

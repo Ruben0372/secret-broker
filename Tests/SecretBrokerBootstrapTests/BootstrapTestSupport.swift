@@ -1,9 +1,24 @@
 import Foundation
 
+/// Anchor type used only to locate this test bundle on disk.
+final class TestBundleLocator {}
+
 /// Shared helpers for the bootstrap suite. Tests here inspect the repository
 /// and the package manifest instead of production state: no Keychain access,
 /// no credentials, no network. Subprocesses are limited to git and swiftpm.
 enum BootstrapTestSupport {
+    /// Active build directory, derived from where this test bundle actually
+    /// lives rather than assuming `.build`. The bundle sits inside whatever
+    /// scratch path the build used, so `swift test --scratch-path <dir>` works
+    /// without the artifact checks silently finding nothing.
+    static let buildDirectory: URL = Bundle(for: TestBundleLocator.self)
+        .bundleURL
+        .deletingLastPathComponent()
+
+    static var modulesDirectory: URL {
+        buildDirectory.appendingPathComponent("Modules")
+    }
+
     /// Repository root, derived from this file's location so the suite works
     /// from any working directory, including CI checkouts.
     static let packageRoot: URL = URL(fileURLWithPath: #filePath)

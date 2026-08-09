@@ -37,6 +37,15 @@ public enum PackageGovernance {
     added unnoticed; they do not make the boundary airtight.
     """
 
+    public static let receiptCorrelationBoundary = """
+    Receipt correlation: receipt digests are keyed with a process-wide key that \
+    the runtime generates at first access and holds in memory only. Receipts \
+    therefore correlate for the lifetime of a daemon process, including across \
+    separate daemon instances inside that process, and are unlinkable across \
+    restarts by design. A restart is deliberately a clean break: nothing \
+    persists that would tie new receipts to old ones.
+    """
+
     public static let releaseSigningPrerequisite = """
     Release signing prerequisite: daemon binaries must be signed with a \
     Developer ID identity and notarized before any release artifact or \

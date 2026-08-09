@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 import SecretBrokerAdapters
 import SecretBrokerContracts
-import SecretBrokerDaemon
+@testable import SecretBrokerDaemon
 import Testing
 
 /// A receipt digest is not a privacy control if it is an unkeyed hash of a
@@ -19,8 +19,8 @@ struct DigestKeyingTests {
             .joined()
     }
 
-    @Test("Digests stay stable within one boot so receipts correlate")
-    func stableWithinBoot() async throws {
+    @Test("Digests stay stable for one daemon so receipts correlate")
+    func stableWithinOneDaemon() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
         let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
         let first = await daemon.handle(.availability(reference))
@@ -28,17 +28,49 @@ struct DigestKeyingTests {
         #expect(first.requestDigest == second.requestDigest)
     }
 
-    @Test("The same reference digests differently across boots")
-    func differsAcrossBoots() async throws {
+    @Test("Two daemons in one process share the key and correlate")
+    func correlatesAcrossInstancesInOneProcess() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
-        let bootOne = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let bootTwo = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let fromFirst = await bootOne.handle(.availability(reference))
-        let fromSecond = await bootTwo.handle(.availability(reference))
+        let first = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
+        let second = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
+        let fromFirst = await first.handle(.availability(reference))
+        let fromSecond = await second.handle(.availability(reference))
         #expect(
-            fromFirst.requestDigest != fromSecond.requestDigest,
-            "digest is not keyed per boot, so it is recoverable by enumerating references"
+            fromFirst.requestDigest == fromSecond.requestDigest,
+            "the receipt key is per instance, not process-wide; receipts should correlate within a process lifetime"
         )
+    }
+
+    @Test("The key factory is random, so a restart is unlinkable")
+    func keyFactoryIsRandom() async throws {
+        let reference = try SecretReference(namespace: "test", name: "FAKE_A")
+        // Two generated keys stand in for two process lifetimes: the process
+        // key comes from this same factory at first access.
+        let oneLife = DaemonBootstrap(
+            custodian: InMemorySecretCustodian(known: [reference]),
+            receiptKey: ReceiptKeyStore.makeKey()
+        )
+        let nextLife = DaemonBootstrap(
+            custodian: InMemorySecretCustodian(known: [reference]),
+            receiptKey: ReceiptKeyStore.makeKey()
+        )
+        let fromOne = await oneLife.handle(.availability(reference))
+        let fromNext = await nextLife.handle(.availability(reference))
+        #expect(
+            fromOne.requestDigest != fromNext.requestDigest,
+            "the key factory returns a fixed key, so receipts would link across restarts"
+        )
+    }
+
+    @Test("The process key is runtime-generated, not a fixed constant")
+    func processKeyIsRuntimeGenerated() throws {
+        let processKeyBytes = ReceiptKeyStore.processKey.withUnsafeBytes { Data($0) }
+        #expect(processKeyBytes.count == 32)
+        // A compile-time constant would be a fixed pattern; a random key is
+        // neither all zero nor equal to a freshly generated one.
+        #expect(processKeyBytes != Data(repeating: 0, count: 32))
+        let freshBytes = ReceiptKeyStore.makeKey().withUnsafeBytes { Data($0) }
+        #expect(processKeyBytes != freshBytes)
     }
 
     @Test("Digest is not the unsalted hash of the reference")

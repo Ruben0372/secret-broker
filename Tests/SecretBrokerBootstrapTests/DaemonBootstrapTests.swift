@@ -98,5 +98,9 @@ struct DaemonBootstrapTests {
         #expect(PackageGovernance.enforcementModel.contains("selector stubs are not the primary signal"))
         #expect(PackageGovernance.enforcementModel.contains("already legitimately links"))
         #expect(PackageGovernance.enforcementModel.contains("not make the boundary airtight"))
+        // The correlation window must stay documented, not inferred.
+        #expect(PackageGovernance.receiptCorrelationBoundary.contains("process-wide key"))
+        #expect(PackageGovernance.receiptCorrelationBoundary.contains("lifetime of a daemon process"))
+        #expect(PackageGovernance.receiptCorrelationBoundary.contains("unlinkable across"))
     }
 }
