@@ -17,9 +17,13 @@ public struct BootstrapReport: Sendable, Equatable {
 /// proves the redacted receipt path with fakes.
 public struct DaemonBootstrap: Sendable {
     private let custodian: any SecretCustodian
+    /// Per-boot receipt key. Random, memory only, never persisted, logged, or
+    /// exported, and discarded when the daemon process ends.
+    private let receiptKey: SymmetricKey
 
     public init(custodian: any SecretCustodian) {
         self.custodian = custodian
+        self.receiptKey = SymmetricKey(size: .bits256)
     }
 
     public func start() -> BootstrapReport {
@@ -32,7 +36,7 @@ public struct DaemonBootstrap: Sendable {
     public func handle(_ request: BrokeredRequest) async -> BrokeredReceipt {
         switch request {
         case .availability(let reference):
-            let digest = Self.digest(of: reference)
+            let digest = digest(of: reference)
             do {
                 let availability = try await custodian.availability(of: reference)
                 switch availability {
@@ -51,9 +55,17 @@ public struct DaemonBootstrap: Sendable {
 
     /// Receipts identify requests by digest so logs and receipts never carry
     /// reference text, which may hint at what a caller integrates with.
-    static func digest(of reference: SecretReference) -> String {
+    ///
+    /// Keyed with the per-boot key rather than hashed directly: the reference
+    /// space is small and enumerable, so an unkeyed digest of a reference is
+    /// recoverable by wordlist. Keying keeps receipts correlatable inside one
+    /// boot and meaningless outside it.
+    func digest(of reference: SecretReference) -> String {
         let canonical = "\(reference.namespace)\u{1F}\(reference.name)"
-        let hash = SHA256.hash(data: Data(canonical.utf8))
-        return hash.map { String(format: "%02x", $0) }.joined()
+        let code = HMAC<SHA256>.authenticationCode(
+            for: Data(canonical.utf8),
+            using: receiptKey
+        )
+        return code.map { String(format: "%02x", $0) }.joined()
     }
 }

@@ -1,6 +1,10 @@
 import Foundation
 
-/// Typed handle to a brokered secret. Carries naming only, never material.
+/// Typed handle to a brokered secret, carrying naming only.
+///
+/// The narrow claim this supports: no operation on the contract surface returns
+/// secret material, which the seam and API pinning tests enforce. It is not a
+/// claim about what a future custody module may hold internally.
 public struct SecretReference: Sendable, Hashable, Codable {
     public let namespace: String
     public let name: String

@@ -13,6 +13,15 @@ public enum PackageGovernance {
     not by any runtime target.
     """
 
+    public static let enforcementModel = """
+    Enforcement model: the forbidden-token scan over package sources is a \
+    best-effort review aid, not a control. It matches text and ordinary Swift \
+    can evade it. The controls that hold the boundary are the daemon \
+    dependency allowlist, the unexported adapters target, and the seam and API \
+    pinning tests that fix the custody protocol method set, the request case \
+    list, and the public daemon return types.
+    """
+
     public static let releaseSigningPrerequisite = """
     Release signing prerequisite: daemon binaries must be signed with a \
     Developer ID identity and notarized before any release artifact or \

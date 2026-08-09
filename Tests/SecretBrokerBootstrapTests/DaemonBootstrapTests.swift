@@ -31,8 +31,10 @@ struct DaemonBootstrapTests {
         let missing = await daemon.handle(.availability(absent))
         #expect(missing.resultClass == .availabilityAbsent)
 
+        // A hex digest trivially never contains the reference text, so that
+        // assertion asserted nothing. Digest privacy is pinned by the keying
+        // tests in DigestKeyingTests; here we only pin shape and separation.
         #expect(confirmed.requestDigest.count == 64)
-        #expect(!confirmed.requestDigest.contains("FAKE_PRESENT"))
         #expect(confirmed.requestDigest != missing.requestDigest)
     }
 
@@ -80,5 +82,9 @@ struct DaemonBootstrapTests {
         #expect(PackageGovernance.releaseSigningPrerequisite.contains("notarized"))
         #expect(PackageGovernance.fakeFirstBoundary.contains("fakes"))
         #expect(PackageGovernance.fakeFirstBoundary.contains("No production secret access"))
+        // The scan must not be described as a control anywhere in governance.
+        #expect(PackageGovernance.enforcementModel.contains("best-effort review aid"))
+        #expect(PackageGovernance.enforcementModel.contains("not a control"))
+        #expect(PackageGovernance.enforcementModel.contains("dependency allowlist"))
     }
 }

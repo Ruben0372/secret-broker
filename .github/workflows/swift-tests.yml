@@ -6,6 +6,11 @@ on:
       - main
   pull_request:
 
+# Least privilege: the job only reads the checkout. No token write scope is
+# needed, and none is granted.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: swift-test-macos

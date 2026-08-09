@@ -75,6 +75,47 @@ struct RuntimeIsolationTests {
             }
             let resources = target["resources"] as? [[String: Any]] ?? []
             #expect(resources.isEmpty, "target \(name) declares resources; scripts must not ride along")
+
+            // A build tool or command plugin runs arbitrary executables during
+            // the build, which would give the scripts a runtime path that the
+            // dependency allowlist does not cover.
+            let type = target["type"] as? String ?? "regular"
+            #expect(
+                ["regular", "test"].contains(type),
+                "target \(name) has type \(type); plugin targets are not permitted"
+            )
+            let pluginUsages = target["pluginUsages"] as? [Any] ?? []
+            #expect(pluginUsages.isEmpty, "target \(name) declares plugin usages")
+        }
+    }
+
+    @Test("Package products are exactly the contracts and daemon libraries")
+    func productAllowlist() {
+        let products = BootstrapTestSupport.manifestObject()["products"] as? [[String: Any]] ?? []
+        let names = products.compactMap { $0["name"] as? String }.sorted()
+        #expect(
+            names == ["SecretBrokerContracts", "SecretBrokerDaemon"],
+            "product list changed: \(names). Exporting adapters would make the fakes linkable."
+        )
+        for product in products {
+            let exported = product["targets"] as? [String] ?? []
+            #expect(
+                !exported.contains("SecretBrokerAdapters"),
+                "product \(product["name"] as? String ?? "unnamed") exports the adapters target"
+            )
+        }
+    }
+
+    @Test("Every declared dependency parses, so allowlists cannot pass by omission")
+    func dependencyParsingLosesNothing() {
+        for target in BootstrapTestSupport.manifestTargets() {
+            let name = target["name"] as? String ?? "unnamed"
+            let raw = (target["dependencies"] as? [[String: Any]] ?? []).count
+            let parsed = BootstrapTestSupport.dependencyNames(of: target).count
+            #expect(
+                parsed == raw,
+                "target \(name) declares \(raw) dependencies but only \(parsed) parsed; an unparsed entry would silently satisfy an allowlist check"
+            )
         }
     }
 
