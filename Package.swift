@@ -22,11 +22,20 @@ let package = Package(
             name: "SecretBrokerDaemon",
             dependencies: ["SecretBrokerContracts"]
         ),
+        // Test doubles for the custody seam. Deliberately not exported as a
+        // product and never a daemon dependency, so no adapter can be linked
+        // into the runtime. Sources stay under Fakes/; a real adapter needs
+        // security review and its own target.
+        .target(
+            name: "SecretBrokerAdapters",
+            dependencies: ["SecretBrokerContracts"]
+        ),
         .testTarget(
             name: "SecretBrokerBootstrapTests",
             dependencies: [
                 "SecretBrokerContracts",
                 "SecretBrokerDaemon",
+                "SecretBrokerAdapters",
             ]
         ),
     ]

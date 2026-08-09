@@ -6,10 +6,11 @@ public enum PackageGovernance {
     Package ownership: Ruben0372/secret-broker, Armel Secret Broker v1.0.1 \
     foundations. ARM-5 / W0-005 owns Package.swift, \
     Sources/SecretBrokerDaemon, Sources/SecretBrokerContracts, \
-    Tests/SecretBrokerBootstrapTests, and .github/workflows. Custody \
-    (Keychain), Signal transport, and core orchestration modules belong to \
-    later issues under separate ownership; the legacy shell scripts are \
-    provenance only and are owned by history, not by any runtime target.
+    Sources/SecretBrokerAdapters, Tests/SecretBrokerBootstrapTests, and \
+    .github/workflows. Real custody (Keychain), Signal transport, and core \
+    orchestration modules belong to later issues under separate ownership; \
+    the legacy shell scripts are provenance only and are owned by history, \
+    not by any runtime target.
     """
 
     public static let releaseSigningPrerequisite = """
@@ -23,9 +24,10 @@ public enum PackageGovernance {
     public static let fakeFirstBoundary = """
     Fake-first boundary: every test in this package runs against fakes and \
     disposable state only. No production secret access, no Keychain \
-    namespace access, no real credentials, no environment export. The \
-    custodian seam ships with an in-memory fake; real custody arrives in a \
-    dedicated module with a dedicated test Keychain namespace in a later \
-    issue.
+    namespace access, no real credentials, no environment export. Custody \
+    doubles live in SecretBrokerAdapters under Fakes/, which is not exported \
+    as a product and is never a daemon dependency, so no adapter can be \
+    linked into the runtime. Real custody arrives in a dedicated module with \
+    a dedicated test Keychain namespace in a later issue.
     """
 }

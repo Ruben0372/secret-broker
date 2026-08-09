@@ -1,30 +1,16 @@
 import Foundation
+import SecretBrokerAdapters
 import SecretBrokerContracts
 import SecretBrokerDaemon
 import Testing
 
-/// In-memory custodian: disposable state only, no Keychain, no credentials.
-struct FakeSecretCustodian: SecretCustodian {
-    let known: Set<SecretReference>
-
-    func availability(of reference: SecretReference) async throws -> SecretAvailability {
-        known.contains(reference) ? .present : .absent
-    }
-}
-
-struct FailingCustodian: SecretCustodian {
-    struct ProbeFailure: Error {}
-
-    func availability(of reference: SecretReference) async throws -> SecretAvailability {
-        throw ProbeFailure()
-    }
-}
-
+/// Custody doubles come from the adapters target so the seam is exercised the
+/// same way a real adapter would be wired, without any real custody path.
 @Suite("Daemon bootstrap with fakes")
 struct DaemonBootstrapTests {
     @Test("Bootstrap reports version 1.0.1 and the pinned capability surface")
     func bootstrapReport() {
-        let daemon = DaemonBootstrap(custodian: FakeSecretCustodian(known: []))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: []))
         let report = daemon.start()
         #expect(report.version == "1.0.1")
         #expect(report.capabilities == [.availabilityCheck])
@@ -37,7 +23,7 @@ struct DaemonBootstrapTests {
     func availabilityReceipts() async throws {
         let present = try SecretReference(namespace: "test", name: "FAKE_PRESENT")
         let absent = try SecretReference(namespace: "test", name: "FAKE_ABSENT")
-        let daemon = DaemonBootstrap(custodian: FakeSecretCustodian(known: [present]))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [present]))
 
         let confirmed = await daemon.handle(.availability(present))
         #expect(confirmed.resultClass == .availabilityConfirmed)
@@ -52,7 +38,7 @@ struct DaemonBootstrapTests {
 
     @Test("Custodian failure fails closed with an explicit result class")
     func custodianFailureFailsClosed() async throws {
-        let daemon = DaemonBootstrap(custodian: FailingCustodian())
+        let daemon = DaemonBootstrap(custodian: FailingSecretCustodian())
         let reference = try SecretReference(namespace: "test", name: "FAKE_ANY")
         let receipt = await daemon.handle(.availability(reference))
         #expect(receipt.resultClass == .custodianUnavailable)
@@ -88,6 +74,8 @@ struct DaemonBootstrapTests {
     func governanceRecordsPresent() {
         #expect(PackageGovernance.packageOwnership.contains("Package.swift"))
         #expect(PackageGovernance.packageOwnership.contains("provenance only"))
+        #expect(PackageGovernance.packageOwnership.contains("SecretBrokerAdapters"))
+        #expect(PackageGovernance.fakeFirstBoundary.contains("SecretBrokerAdapters"))
         #expect(PackageGovernance.releaseSigningPrerequisite.contains("Developer ID"))
         #expect(PackageGovernance.releaseSigningPrerequisite.contains("notarized"))
         #expect(PackageGovernance.fakeFirstBoundary.contains("fakes"))
