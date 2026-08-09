@@ -1,0 +1,59 @@
+import CryptoKit
+import Foundation
+import SecretBrokerContracts
+
+public struct BootstrapReport: Sendable, Equatable {
+    public let version: String
+    public let capabilities: Set<RuntimeCapability>
+
+    public init(version: String, capabilities: Set<RuntimeCapability>) {
+        self.version = version
+        self.capabilities = capabilities
+    }
+}
+
+/// Foundations of the per-user daemon. IPC dispatch, caller identity, and
+/// supervision arrive in later issues; this slice wires the custody seam and
+/// proves the redacted receipt path with fakes.
+public struct DaemonBootstrap: Sendable {
+    private let custodian: any SecretCustodian
+
+    public init(custodian: any SecretCustodian) {
+        self.custodian = custodian
+    }
+
+    public func start() -> BootstrapReport {
+        BootstrapReport(
+            version: SecretBrokerVersion.current,
+            capabilities: RuntimePolicy.capabilities
+        )
+    }
+
+    public func handle(_ request: BrokeredRequest) async -> BrokeredReceipt {
+        switch request {
+        case .availability(let reference):
+            let digest = Self.digest(of: reference)
+            do {
+                let availability = try await custodian.availability(of: reference)
+                switch availability {
+                case .present:
+                    return BrokeredReceipt(requestDigest: digest, resultClass: .availabilityConfirmed)
+                case .absent:
+                    return BrokeredReceipt(requestDigest: digest, resultClass: .availabilityAbsent)
+                }
+            } catch {
+                // Fail closed: probe errors surface as an explicit result
+                // class and are never retried implicitly.
+                return BrokeredReceipt(requestDigest: digest, resultClass: .custodianUnavailable)
+            }
+        }
+    }
+
+    /// Receipts identify requests by digest so logs and receipts never carry
+    /// reference text, which may hint at what a caller integrates with.
+    static func digest(of reference: SecretReference) -> String {
+        let canonical = "\(reference.namespace)\u{1F}\(reference.name)"
+        let hash = SHA256.hash(data: Data(canonical.utf8))
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+}
