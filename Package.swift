@@ -36,7 +36,10 @@ let package = Package(
                 "SecretBrokerContracts",
                 "SecretBrokerDaemon",
                 "SecretBrokerAdapters",
-            ]
+            ],
+            // Golden symbol allowlists are read from disk by path, not bundled
+            // as resources, so the no-resources pin on targets still holds.
+            exclude: ["Golden"]
         ),
     ]
 )

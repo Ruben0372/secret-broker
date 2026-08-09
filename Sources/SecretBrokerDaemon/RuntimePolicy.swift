@@ -8,18 +8,21 @@
 /// 2. Products that do not export the adapters target, pinned by test.
 /// 3. Seam and public API pinning: the exact custody method set, the exact
 ///    request case list, and the exact public daemon methods and return types.
-/// 4. An artifact assertion over the compiled daemon module's undefined
-///    symbols, which catches a capability regardless of how its source is
-///    spelled and so does not lose to obfuscation the way text matching does.
+/// 4. Artifact assertions over the compiled modules' undefined symbols: a
+///    reviewed golden allowlist that notices anything new, and a denylist that
+///    names known-bad families with a readable failure. These catch a
+///    capability regardless of how its source is spelled.
 /// 5. The forbidden-token scan over sources, a best-effort review aid only. It
 ///    matches text, ordinary Swift can evade it, and it is not a control.
 ///
-/// Residual limit: layer 4 is a denylist of named symbol families. A capability
-/// reached through an already-linked Foundation surface, ProcessInfo
-/// environment access being the clearest example, resolves inside Foundation
-/// and never appears in the daemon's undefined symbols. These layers raise the
-/// cost of an obfuscated capability. They do not make the boundary airtight,
-/// and it should not be described as if they do.
+/// Honest limits of layer 4: the check is macOS and Objective-C interop
+/// specific. The stable signal is the _OBJC_CLASS_$_ class reference that
+/// appears when a module touches a Foundation class; selector stubs are not the
+/// primary signal and are not relied on. The residual limit is capability
+/// reachable through APIs the module already legitimately links, which by
+/// definition introduces no new symbol. These layers raise the cost of an
+/// obfuscated capability and narrow what can be added unnoticed. They do not
+/// make the boundary airtight.
 public enum RuntimeCapability: String, CaseIterable, Sendable, Codable {
     case availabilityCheck
 }

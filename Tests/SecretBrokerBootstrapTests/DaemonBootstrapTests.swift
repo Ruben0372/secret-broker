@@ -87,9 +87,16 @@ struct DaemonBootstrapTests {
         #expect(PackageGovernance.enforcementModel.contains("not a control"))
         #expect(PackageGovernance.enforcementModel.contains("dependency allowlist"))
         #expect(PackageGovernance.enforcementModel.contains("undefined symbols"))
+        #expect(PackageGovernance.enforcementModel.contains("golden allowlist"))
+        // Regeneration discipline must stay stated: a blind refresh would
+        // adopt whatever capability was just introduced.
+        #expect(PackageGovernance.enforcementModel.contains("reviewed act"))
+        #expect(PackageGovernance.enforcementModel.contains("pinned CI toolchain"))
+        #expect(PackageGovernance.enforcementModel.contains("never a casual refresh"))
         // The residual limit must stay stated, and no record may claim the
         // boundary is airtight.
-        #expect(PackageGovernance.enforcementModel.contains("ProcessInfo"))
+        #expect(PackageGovernance.enforcementModel.contains("selector stubs are not the primary signal"))
+        #expect(PackageGovernance.enforcementModel.contains("already legitimately links"))
         #expect(PackageGovernance.enforcementModel.contains("not make the boundary airtight"))
     }
 }

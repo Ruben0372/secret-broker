@@ -15,17 +15,26 @@ public enum PackageGovernance {
 
     public static let enforcementModel = """
     Enforcement model, layered: the daemon dependency allowlist, products that \
-    do not export the adapters target, seam and public API pinning, and an \
-    artifact assertion over the compiled daemon module's undefined symbols, \
-    which catches a capability regardless of how its source is spelled. The \
-    forbidden-token scan over package sources is a best-effort review aid, not \
-    a control, because it matches text and ordinary Swift can evade it. \
-    Residual limit: the artifact assertion is a denylist of named symbol \
-    families, so a capability reached through an already-linked Foundation \
-    surface, ProcessInfo environment access being the clearest example, \
-    resolves inside Foundation and never appears in the daemon's undefined \
-    symbols. These layers raise the cost of an obfuscated capability; they do \
-    not make the boundary airtight.
+    do not export the adapters target, seam and public API pinning, and \
+    artifact assertions over the compiled modules' undefined symbols. The \
+    artifact layer is two checks: a reviewed golden allowlist per module that \
+    notices anything new, and a denylist that names known-bad families with a \
+    readable failure. The forbidden-token scan over package sources is a \
+    best-effort review aid, not a control, because it matches text and \
+    ordinary Swift can evade it.
+
+    Golden files: regenerating a golden symbol allowlist is a reviewed act \
+    performed under the pinned CI toolchain and reviewed symbol by symbol. It \
+    is never a casual refresh, because a blind regeneration adopts whatever \
+    capability was just introduced and reports success.
+
+    Honest limits: the artifact check is macOS and Objective-C interop \
+    specific. The stable signal is the _OBJC_CLASS_$_ class reference; \
+    selector stubs are not the primary signal and are not relied on. The \
+    residual limit is capability reachable through APIs a module already \
+    legitimately links, which by definition introduces no new symbol. These \
+    layers raise the cost of an obfuscated capability and narrow what can be \
+    added unnoticed; they do not make the boundary airtight.
     """
 
     public static let releaseSigningPrerequisite = """

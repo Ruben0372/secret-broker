@@ -36,19 +36,28 @@ public struct DaemonBootstrap: Sendable {
     public func handle(_ request: BrokeredRequest) async -> BrokeredReceipt {
         switch request {
         case .availability(let reference):
-            let digest = digest(of: reference)
+            let receiptDigest = digest(of: reference)
             do {
                 let availability = try await custodian.availability(of: reference)
                 switch availability {
                 case .present:
-                    return BrokeredReceipt(requestDigest: digest, resultClass: .availabilityConfirmed)
+                    return BrokeredReceipt(
+                        requestDigest: receiptDigest,
+                        resultClass: .availabilityConfirmed
+                    )
                 case .absent:
-                    return BrokeredReceipt(requestDigest: digest, resultClass: .availabilityAbsent)
+                    return BrokeredReceipt(
+                        requestDigest: receiptDigest,
+                        resultClass: .availabilityAbsent
+                    )
                 }
             } catch {
                 // Fail closed: probe errors surface as an explicit result
                 // class and are never retried implicitly.
-                return BrokeredReceipt(requestDigest: digest, resultClass: .custodianUnavailable)
+                return BrokeredReceipt(
+                    requestDigest: receiptDigest,
+                    resultClass: .custodianUnavailable
+                )
             }
         }
     }
