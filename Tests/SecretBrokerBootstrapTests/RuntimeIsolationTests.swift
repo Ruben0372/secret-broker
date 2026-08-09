@@ -95,6 +95,35 @@ struct RuntimeIsolationTests {
         }
     }
 
+    @Test("Manifest shape is conventional: no sources lists, paths match target names")
+    func manifestShapeIsConventional() {
+        for target in BootstrapTestSupport.manifestTargets() {
+            let name = target["name"] as? String ?? "unnamed"
+            let type = target["type"] as? String ?? "regular"
+
+            // An explicit sources list decouples module membership from the
+            // directory layout: a target rooted at Sources with a sources list
+            // compiles files from sibling directories into the module. Every
+            // check that reasons about "the module's files" is then reasoning
+            // about the wrong set. If a target ever genuinely needs this, it
+            // needs security review, not a relaxed pin.
+            let rawSources = target["sources"]
+            let declaresSources = !(rawSources == nil || rawSources is NSNull)
+            #expect(
+                !declaresSources,
+                "target \(name) declares an explicit sources list; module membership must follow the directory layout"
+            )
+
+            let expectedPath = type == "test" ? "Tests/\(name)" : "Sources/\(name)"
+            if let declaredPath = target["path"] as? String {
+                #expect(
+                    declaredPath == expectedPath,
+                    "target \(name) declares path \(declaredPath); expected exactly \(expectedPath)"
+                )
+            }
+        }
+    }
+
     @Test("Package products are exactly the contracts and daemon libraries")
     func productAllowlist() {
         let products = BootstrapTestSupport.manifestObject()["products"] as? [[String: Any]] ?? []

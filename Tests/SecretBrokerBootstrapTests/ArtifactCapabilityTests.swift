@@ -46,16 +46,41 @@ struct ArtifactCapabilityTests {
         ]
     }
 
-    /// Source file base names currently in the module, used to reconcile the
-    /// build directory against the tree.
-    static func sourceBaseNames(for module: String) -> Set<String> {
-        let directory = BootstrapTestSupport.packageRoot
-            .appendingPathComponent("Sources")
-            .appendingPathComponent(module)
-        return Set(
-            BootstrapTestSupport.swiftFiles(under: directory)
-                .map { $0.deletingPathExtension().lastPathComponent }
-        )
+    /// Source file base names the manifest actually compiles into the module.
+    ///
+    /// Derived from the dumped manifest, target path plus any declared sources
+    /// list, never from a directory glob. A glob answers "what is under
+    /// Sources/<module>", which is not the same question as "what goes into
+    /// the module": a target declaring path "Sources" with an explicit sources
+    /// list compiles files from anywhere under it, and a glob-based
+    /// reconciliation would drop exactly those objects from the scan, turning
+    /// the reconciliation into a way to disable the capability layer. The
+    /// manifest is the authority on module membership, so it is what is read.
+    static func liveSourceBaseNames(for module: String) -> Set<String> {
+        guard let target = BootstrapTestSupport.target(named: module) else {
+            return []
+        }
+        let declaredPath = target["path"] as? String ?? "Sources/\(module)"
+        let root = BootstrapTestSupport.packageRoot.appendingPathComponent(declaredPath)
+
+        var files: [URL] = []
+        if let declaredSources = target["sources"] as? [String] {
+            for entry in declaredSources {
+                let url = root.appendingPathComponent(entry)
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                    continue
+                }
+                if isDirectory.boolValue {
+                    files += BootstrapTestSupport.swiftFiles(under: url)
+                } else if url.pathExtension == "swift" {
+                    files.append(url)
+                }
+            }
+        } else {
+            files = BootstrapTestSupport.swiftFiles(under: root)
+        }
+        return Set(files.map { $0.deletingPathExtension().lastPathComponent })
     }
 
     /// Searches the active build directory, derived from this test bundle's own
@@ -80,7 +105,7 @@ struct ArtifactCapabilityTests {
             "-name", "lib\(module)*.a",
         ])
 
-        let liveSources = sourceBaseNames(for: module)
+        let liveSources = liveSourceBaseNames(for: module)
         let objectPaths = objects.stdout
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
