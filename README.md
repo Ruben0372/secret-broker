@@ -1,5 +1,7 @@
 # Secret Broker
 
+> **Historical notice.** The shell scripts in this repository, `load-secrets.sh` and `add-secret.sh`, are **provenance only**. They are kept as the original proof of concept and are **prohibited as an Armel runtime** per `AGENTS.md`; the bulk environment export path must not be revived. The product of this repository is the **Swift daemon package**, which exposes typed, caller-pinned operations and never exports secret values. Everything below this notice is retained as historical record and describes the superseded script workflow.
+
 **Zero-dependency secrets management for macOS using the built-in Keychain.**
 
 Stop storing API keys in `.env` files. Secret Broker loads credentials from macOS Keychain into environment variables at runtime. No plaintext secrets on disk, ever.
