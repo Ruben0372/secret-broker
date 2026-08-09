@@ -26,9 +26,22 @@ let package = Package(
         // product and never a daemon dependency, so no adapter can be linked
         // into the runtime. Sources stay under Fakes/; a real adapter needs
         // security review and its own target.
+        // Policy-neutral orchestration: caller verification and serialized
+        // dispatch. Depends on contracts only, so it cannot reach custody.
+        .target(
+            name: "SecretBrokerCore",
+            dependencies: ["SecretBrokerContracts"]
+        ),
         .target(
             name: "SecretBrokerAdapters",
             dependencies: ["SecretBrokerContracts"]
+        ),
+        .testTarget(
+            name: "SecretBrokerDaemonTests",
+            dependencies: [
+                "SecretBrokerContracts",
+                "SecretBrokerCore",
+            ]
         ),
         .testTarget(
             name: "SecretBrokerBootstrapTests",
