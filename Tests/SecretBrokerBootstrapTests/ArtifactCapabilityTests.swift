@@ -91,10 +91,27 @@ struct ArtifactCapabilityTests {
         for needle in forbiddenNeedles where symbol.contains(needle) {
             return .capability
         }
-        // Autolink directives and compiler or stdlib runtime entry points vary
-        // between toolchains and carry no capability of their own.
-        let driftPrefixes = ["__swift_FORCE_LOAD_$_", "_swift_", "___", "_$s"]
-        for prefix in driftPrefixes where symbol.hasPrefix(prefix) {
+        // Autolink directives and compiler or runtime entry points vary between
+        // toolchains and carry no capability of their own.
+        let runtimePrefixes = ["__swift_FORCE_LOAD_$_", "_swift_", "___"]
+        for prefix in runtimePrefixes where symbol.hasPrefix(prefix) {
+            return .toolchainDrift
+        }
+
+        // Swift manglings need a finer cut than their shared "_$s" prefix.
+        // "_$s" introduces ANY Swift declaration reference, not just runtime
+        // plumbing, so treating the whole space as inert describes a capability
+        // expressed through Swift-native APIs as carrying no capability: an
+        // arbitrary filesystem read via Data(contentsOf:) mangles to
+        // _$s10Foundation4DataV10contentsOf7options... and would have been
+        // reported as drift with advice to regenerate the golden.
+        //
+        // Stdlib manglings, "_$ss" for the Swift module and "_$sS" for the
+        // standard-library shorthand forms, stay inert. Anything module
+        // qualified, such as _$s10Foundation..., names a declaration in another
+        // module and falls through to unclassified, which carries the
+        // treat-as-a-capability-finding-until-reviewed wording.
+        if symbol.hasPrefix("_$ss") || symbol.hasPrefix("_$sS") {
             return .toolchainDrift
         }
         return .unclassified
