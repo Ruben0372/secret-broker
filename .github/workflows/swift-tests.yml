@@ -1,0 +1,24 @@
+name: swift-tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: swift-test-macos
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          # The provenance tests assert git ancestry of the legacy baseline
+          # and the operating guide merge; a shallow clone would break them.
+          fetch-depth: 0
+      - name: Show toolchain
+        run: swift --version
+      - name: Run tests
+        run: swift test
