@@ -53,6 +53,22 @@ public enum PackageGovernance {
     persists that would tie new receipts to old ones.
     """
 
+    public static let callerVerificationGate = """
+    Caller verification gate: every daemon entry point is caller bound. There \
+    is no unverified public path, so a request cannot reach an operation \
+    without an identity to check. Production verification is disabled until a \
+    release signing identity exists, because deciding that an audit token \
+    belongs to a trusted caller requires one, and while it is disabled the \
+    production verifier denies every call including well-formed ones. The \
+    boundary is therefore closed by default and opening it is a deliberate act \
+    that must arrive with the identity. Do not substitute a weaker check to \
+    unblock work: an approximate caller check is worse than a closed door, \
+    because it looks like a boundary. Denials name the dimension that failed, \
+    bundle, team, user, operation, debug identity, missing audit token, or \
+    designated requirement, so a widened check cannot hide behind an unchanged \
+    refusal.
+    """
+
     public static let releaseSigningPrerequisite = """
     Release signing prerequisite: daemon binaries must be signed with a \
     Developer ID identity and notarized before any release artifact or \

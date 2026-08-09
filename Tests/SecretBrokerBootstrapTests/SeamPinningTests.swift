@@ -39,11 +39,42 @@ struct SeamPinningTests {
         return opened ? result : nil
     }
 
+    /// Declarations beginning with `prefix`, joined across continuation lines.
+    ///
+    /// A declaration split over several lines used to be invisible to the
+    /// return-type parser: the first line carries the name but no `->`, so the
+    /// pin collected the name and silently dropped the type. That is the
+    /// failure mode where a check fires but reports the wrong thing, so the
+    /// scan now accumulates until the signature closes.
     static func lines(in block: String, withPrefix prefix: String) -> [String] {
-        block
-            .split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { $0.hasPrefix(prefix) }
+        var declarations: [String] = []
+        var pending: String?
+
+        for rawLine in block.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if var accumulating = pending {
+                accumulating += " " + line
+                if line.contains("{") || line.hasSuffix(")") && accumulating.contains("->") {
+                    declarations.append(accumulating)
+                    pending = nil
+                } else {
+                    pending = accumulating
+                }
+                continue
+            }
+            guard line.hasPrefix(prefix) else { continue }
+            // Complete on one line when it opens a body or is a protocol
+            // requirement with no body.
+            if line.contains("{") || (line.contains(")") && !line.hasSuffix(",")) {
+                declarations.append(line)
+            } else {
+                pending = line
+            }
+        }
+        if let leftover = pending {
+            declarations.append(leftover)
+        }
+        return declarations
     }
 
     static func name(ofDeclaration line: String, keyword: String) -> String {
@@ -102,7 +133,7 @@ struct SeamPinningTests {
         )
     }
 
-    @Test("Public daemon API is exactly the bootstrap and handle methods")
+    @Test("Public daemon API is exactly the bootstrap and caller-bound dispatch")
     func publicDaemonAPISurface() throws {
         var names: [String] = []
         var returnTypes: [String] = []
@@ -119,11 +150,14 @@ struct SeamPinningTests {
                 }
             }
         }
+        // ARM-24: the unverified handle(_:) is gone. Every public entry is
+        // caller bound, so there is no path to an operation without an
+        // identity to verify.
         #expect(
-            names.sorted() == ["handle", "start"],
+            names.sorted() == ["dispatch", "start"],
             "public daemon API changed: \(names.sorted()). Widening it needs security review."
         )
-        #expect(Set(returnTypes) == ["BootstrapReport", "BrokeredReceipt"])
+        #expect(Set(returnTypes) == ["BootstrapReport", "DaemonOutcome"])
     }
 
     @Test("No public daemon method returns secret-capable material")

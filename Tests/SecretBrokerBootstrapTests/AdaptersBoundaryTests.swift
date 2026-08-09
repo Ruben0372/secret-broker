@@ -38,7 +38,7 @@ struct AdaptersBoundaryTests {
         )
         let dependencies = BootstrapTestSupport.dependencyNames(of: daemon)
         #expect(!dependencies.contains("SecretBrokerAdapters"))
-        #expect(dependencies == ["SecretBrokerContracts"])
+        #expect(dependencies == ["SecretBrokerContracts", "SecretBrokerCore"])
 
         for file in BootstrapTestSupport.swiftFiles(
             under: BootstrapTestSupport.packageRoot

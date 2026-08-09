@@ -47,7 +47,13 @@ struct RuntimeIsolationTests {
             BootstrapTestSupport.target(named: "SecretBrokerDaemon"),
             "SecretBrokerDaemon target missing from Package.swift"
         )
-        #expect(BootstrapTestSupport.dependencyNames(of: daemon) == ["SecretBrokerContracts"])
+        // SecretBrokerCore admitted deliberately in ARM-24: it holds caller
+        // verification and serialized dispatch and depends on contracts only,
+        // so it cannot reach custody. Any further entry needs security review.
+        #expect(
+            BootstrapTestSupport.dependencyNames(of: daemon)
+                == ["SecretBrokerContracts", "SecretBrokerCore"]
+        )
     }
 
     @Test("Package resolves no external package dependencies")

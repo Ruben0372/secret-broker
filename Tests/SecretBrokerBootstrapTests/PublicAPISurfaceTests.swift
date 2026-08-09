@@ -19,7 +19,7 @@ import Testing
 /// are not caller-facing API.
 @Suite("Public API surface")
 struct PublicAPISurfaceTests {
-    static let modules = ["SecretBrokerDaemon", "SecretBrokerContracts"]
+    static let modules = ["SecretBrokerDaemon", "SecretBrokerCore", "SecretBrokerContracts"]
 
     static func goldenAPI(for module: String) throws -> Set<String> {
         let url = BootstrapTestSupport.packageRoot
@@ -131,7 +131,12 @@ struct PublicAPISurfaceTests {
         // Anchors that must exist in each module's real surface. If the digest
         // read the wrong module, or produced an empty dump, this fails rather
         // than passing an unpinned surface.
-        let anchor = module == "SecretBrokerDaemon" ? "DaemonBootstrap" : "SecretCustodian"
+        let anchor: String
+        switch module {
+        case "SecretBrokerDaemon": anchor = "DaemonBootstrap"
+        case "SecretBrokerCore": anchor = "CallerVerifier"
+        default: anchor = "SecretCustodian"
+        }
         #expect(
             observed.contains { $0.contains(anchor) },
             "\(module) surface does not mention \(anchor); the digest may have read the wrong module"

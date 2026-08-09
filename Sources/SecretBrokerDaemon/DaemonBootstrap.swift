@@ -1,6 +1,15 @@
 import CryptoKit
 import Foundation
 import SecretBrokerContracts
+import SecretBrokerCore
+
+/// Result of a caller-bound request: either a redacted receipt, or the reason
+/// the caller was refused. A denial never carries a receipt, so a refused call
+/// cannot be mistaken for a completed one.
+public enum DaemonOutcome: Sendable, Hashable {
+    case completed(BrokeredReceipt)
+    case denied(CallerDenial)
+}
 
 public struct BootstrapReport: Sendable, Equatable {
     public let version: String
@@ -12,25 +21,49 @@ public struct BootstrapReport: Sendable, Equatable {
     }
 }
 
-/// Foundations of the per-user daemon. IPC dispatch, caller identity, and
-/// supervision arrive in later issues; this slice wires the custody seam and
-/// proves the redacted receipt path with fakes.
+/// Foundations of the per-user daemon. Supervision and the XPC listener arrive
+/// in later issues; this slice binds every request to a caller identity,
+/// verifies it, serializes execution, and proves the redacted receipt path
+/// with fakes.
 public struct DaemonBootstrap: Sendable {
     private let custodian: any SecretCustodian
     /// Receipt key for this daemon. Defaults to the process-wide key, so
     /// receipts correlate across instances within one process lifetime and are
     /// unlinkable across restarts. See ReceiptKeyStore.
     private let receiptKey: SymmetricKey
+    private let dispatcher: SerializedDispatcher
 
+    /// Default daemon. The verifier is the production one, which denies every
+    /// call while audit-token verification is disabled, so an unconfigured
+    /// daemon is closed rather than open.
     public init(custodian: any SecretCustodian) {
-        self.init(custodian: custodian, receiptKey: ReceiptKeyStore.processKey)
+        self.init(
+            custodian: custodian,
+            verifier: ProductionCallerVerifier(),
+            receiptKey: ReceiptKeyStore.processKey
+        )
+    }
+
+    /// Injectable verifier, so tests exercise the caller boundary with fakes
+    /// and a real verifier can be supplied once a release identity exists.
+    public init(custodian: any SecretCustodian, verifier: any CallerVerifier) {
+        self.init(
+            custodian: custodian,
+            verifier: verifier,
+            receiptKey: ReceiptKeyStore.processKey
+        )
     }
 
     /// Explicit-key initialiser, used by tests to prove the key factory is
     /// random. Deliberately not public: a caller must not choose the key.
-    init(custodian: any SecretCustodian, receiptKey: SymmetricKey) {
+    init(
+        custodian: any SecretCustodian,
+        verifier: any CallerVerifier = ProductionCallerVerifier(),
+        receiptKey: SymmetricKey
+    ) {
         self.custodian = custodian
         self.receiptKey = receiptKey
+        self.dispatcher = SerializedDispatcher(verifier: verifier)
     }
 
     public func start() -> BootstrapReport {
@@ -40,7 +73,40 @@ public struct DaemonBootstrap: Sendable {
         )
     }
 
-    public func handle(_ request: BrokeredRequest) async -> BrokeredReceipt {
+    /// The only caller-facing entry point. Every request is bound to a caller
+    /// identity, verified, and serialized. There is deliberately no unverified
+    /// public path: an operation a caller could reach without presenting an
+    /// identity would make the production denial meaningless.
+    public func dispatch(
+        _ request: BrokeredRequest,
+        from caller: CallerIdentity
+    ) async -> DaemonOutcome {
+        let outcome = await dispatcher.dispatch(BrokeredOperationKind(request), from: caller) {
+            await execute(request).resultClass
+        }
+        switch outcome {
+        case .denied(let reason):
+            return .denied(reason)
+        case .completed(let resultClass):
+            return .completed(
+                BrokeredReceipt(
+                    requestDigest: digest(of: reference(in: request)),
+                    resultClass: resultClass
+                )
+            )
+        }
+    }
+
+    private func reference(in request: BrokeredRequest) -> SecretReference {
+        switch request {
+        case .availability(let reference):
+            return reference
+        }
+    }
+
+    /// Runs the operation itself. Private: reaching this without passing the
+    /// caller check is exactly what must not be possible.
+    private func execute(_ request: BrokeredRequest) async -> BrokeredReceipt {
         switch request {
         case .availability(let reference):
             let receiptDigest = digest(of: reference)
@@ -72,10 +138,10 @@ public struct DaemonBootstrap: Sendable {
     /// Receipts identify requests by digest so logs and receipts never carry
     /// reference text, which may hint at what a caller integrates with.
     ///
-    /// Keyed with the per-boot key rather than hashed directly: the reference
+    /// Keyed with the process key rather than hashed directly: the reference
     /// space is small and enumerable, so an unkeyed digest of a reference is
     /// recoverable by wordlist. Keying keeps receipts correlatable inside one
-    /// boot and meaningless outside it.
+    /// process lifetime and meaningless outside it.
     func digest(of reference: SecretReference) -> String {
         let canonical = "\(reference.namespace)\u{1F}\(reference.name)"
         let code = HMAC<SHA256>.authenticationCode(

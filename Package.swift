@@ -20,18 +20,18 @@ let package = Package(
         // appear here without security review.
         .target(
             name: "SecretBrokerDaemon",
-            dependencies: ["SecretBrokerContracts"]
+            dependencies: ["SecretBrokerContracts", "SecretBrokerCore"]
         ),
-        // Test doubles for the custody seam. Deliberately not exported as a
-        // product and never a daemon dependency, so no adapter can be linked
-        // into the runtime. Sources stay under Fakes/; a real adapter needs
-        // security review and its own target.
         // Policy-neutral orchestration: caller verification and serialized
         // dispatch. Depends on contracts only, so it cannot reach custody.
         .target(
             name: "SecretBrokerCore",
             dependencies: ["SecretBrokerContracts"]
         ),
+        // Test doubles for the custody seam. Deliberately not exported as a
+        // product and never a daemon dependency, so no adapter can be linked
+        // into the runtime. Sources stay under Fakes/; a real adapter needs
+        // security review and its own target.
         .target(
             name: "SecretBrokerAdapters",
             dependencies: ["SecretBrokerContracts"]
@@ -47,6 +47,7 @@ let package = Package(
             name: "SecretBrokerBootstrapTests",
             dependencies: [
                 "SecretBrokerContracts",
+                "SecretBrokerCore",
                 "SecretBrokerDaemon",
                 "SecretBrokerAdapters",
             ],
