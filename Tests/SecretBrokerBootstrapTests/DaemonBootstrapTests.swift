@@ -1,6 +1,7 @@
 import Foundation
 import SecretBrokerAdapters
 import SecretBrokerContracts
+import SecretBrokerCore
 import SecretBrokerDaemon
 import Testing
 
@@ -10,7 +11,7 @@ import Testing
 struct DaemonBootstrapTests {
     @Test("Bootstrap reports version 1.0.1 and the pinned capability surface")
     func bootstrapReport() {
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: []))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: []), verifier: TestCaller.verifier)
         let report = daemon.start()
         #expect(report.version == "1.0.1")
         #expect(report.capabilities == [.availabilityCheck])
@@ -23,12 +24,12 @@ struct DaemonBootstrapTests {
     func availabilityReceipts() async throws {
         let present = try SecretReference(namespace: "test", name: "FAKE_PRESENT")
         let absent = try SecretReference(namespace: "test", name: "FAKE_ABSENT")
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [present]))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [present]), verifier: TestCaller.verifier)
 
-        let confirmed = await daemon.handle(.availability(present))
+        let confirmed = try #require(await daemon.dispatch(.availability(present), from: TestCaller.identity).receipt)
         #expect(confirmed.resultClass == .availabilityConfirmed)
 
-        let missing = await daemon.handle(.availability(absent))
+        let missing = try #require(await daemon.dispatch(.availability(absent), from: TestCaller.identity).receipt)
         #expect(missing.resultClass == .availabilityAbsent)
 
         // A hex digest trivially never contains the reference text, so that
@@ -40,9 +41,9 @@ struct DaemonBootstrapTests {
 
     @Test("Custodian failure fails closed with an explicit result class")
     func custodianFailureFailsClosed() async throws {
-        let daemon = DaemonBootstrap(custodian: FailingSecretCustodian())
+        let daemon = DaemonBootstrap(custodian: FailingSecretCustodian(), verifier: TestCaller.verifier)
         let reference = try SecretReference(namespace: "test", name: "FAKE_ANY")
-        let receipt = await daemon.handle(.availability(reference))
+        let receipt = try #require(await daemon.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         #expect(receipt.resultClass == .custodianUnavailable)
     }
 
@@ -78,6 +79,11 @@ struct DaemonBootstrapTests {
         #expect(PackageGovernance.packageOwnership.contains("provenance only"))
         #expect(PackageGovernance.packageOwnership.contains("SecretBrokerAdapters"))
         #expect(PackageGovernance.fakeFirstBoundary.contains("SecretBrokerAdapters"))
+        // The caller gate and its release dependency must stay stated.
+        #expect(PackageGovernance.callerVerificationGate.contains("caller bound"))
+        #expect(PackageGovernance.callerVerificationGate.contains("release signing identity"))
+        #expect(PackageGovernance.callerVerificationGate.contains("denies every call"))
+        #expect(PackageGovernance.callerVerificationGate.contains("closed by default"))
         #expect(PackageGovernance.releaseSigningPrerequisite.contains("Developer ID"))
         #expect(PackageGovernance.releaseSigningPrerequisite.contains("notarized"))
         #expect(PackageGovernance.fakeFirstBoundary.contains("fakes"))

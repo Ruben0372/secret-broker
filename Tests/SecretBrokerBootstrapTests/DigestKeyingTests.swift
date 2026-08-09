@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import SecretBrokerAdapters
 import SecretBrokerContracts
+import SecretBrokerCore
 @testable import SecretBrokerDaemon
 import Testing
 
@@ -22,19 +23,19 @@ struct DigestKeyingTests {
     @Test("Digests stay stable for one daemon so receipts correlate")
     func stableWithinOneDaemon() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let first = await daemon.handle(.availability(reference))
-        let second = await daemon.handle(.availability(reference))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]), verifier: TestCaller.verifier)
+        let first = try #require(await daemon.dispatch(.availability(reference), from: TestCaller.identity).receipt)
+        let second = try #require(await daemon.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         #expect(first.requestDigest == second.requestDigest)
     }
 
     @Test("Two daemons in one process share the key and correlate")
     func correlatesAcrossInstancesInOneProcess() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
-        let first = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let second = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let fromFirst = await first.handle(.availability(reference))
-        let fromSecond = await second.handle(.availability(reference))
+        let first = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]), verifier: TestCaller.verifier)
+        let second = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]), verifier: TestCaller.verifier)
+        let fromFirst = try #require(await first.dispatch(.availability(reference), from: TestCaller.identity).receipt)
+        let fromSecond = try #require(await second.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         #expect(
             fromFirst.requestDigest == fromSecond.requestDigest,
             "the receipt key is per instance, not process-wide; receipts should correlate within a process lifetime"
@@ -48,14 +49,16 @@ struct DigestKeyingTests {
         // key comes from this same factory at first access.
         let oneLife = DaemonBootstrap(
             custodian: InMemorySecretCustodian(known: [reference]),
+            verifier: TestCaller.verifier,
             receiptKey: ReceiptKeyStore.makeKey()
         )
         let nextLife = DaemonBootstrap(
             custodian: InMemorySecretCustodian(known: [reference]),
+            verifier: TestCaller.verifier,
             receiptKey: ReceiptKeyStore.makeKey()
         )
-        let fromOne = await oneLife.handle(.availability(reference))
-        let fromNext = await nextLife.handle(.availability(reference))
+        let fromOne = try #require(await oneLife.dispatch(.availability(reference), from: TestCaller.identity).receipt)
+        let fromNext = try #require(await nextLife.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         #expect(
             fromOne.requestDigest != fromNext.requestDigest,
             "the key factory returns a fixed key, so receipts would link across restarts"
@@ -76,8 +79,8 @@ struct DigestKeyingTests {
     @Test("Digest is not the unsalted hash of the reference")
     func notUnsaltedHash() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let receipt = await daemon.handle(.availability(reference))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]), verifier: TestCaller.verifier)
+        let receipt = try #require(await daemon.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         #expect(
             receipt.requestDigest != Self.unsaltedSHA256(namespace: "test", name: "FAKE_A"),
             "digest equals the unsalted SHA256 of the reference and is reversible by wordlist"
@@ -87,8 +90,8 @@ struct DigestKeyingTests {
     @Test("Encoded receipt carries no key, salt, or nonce field")
     func receiptCarriesNoKeyMaterial() async throws {
         let reference = try SecretReference(namespace: "test", name: "FAKE_A")
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
-        let receipt = await daemon.handle(.availability(reference))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]), verifier: TestCaller.verifier)
+        let receipt = try #require(await daemon.dispatch(.availability(reference), from: TestCaller.identity).receipt)
         let data = try JSONEncoder().encode(receipt)
         let object = try #require(
             try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -112,9 +115,9 @@ struct DigestKeyingTests {
     func distinctReferencesSeparate() async throws {
         let present = try SecretReference(namespace: "test", name: "FAKE_A")
         let other = try SecretReference(namespace: "test", name: "FAKE_B")
-        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [present]))
-        let first = await daemon.handle(.availability(present))
-        let second = await daemon.handle(.availability(other))
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [present]), verifier: TestCaller.verifier)
+        let first = try #require(await daemon.dispatch(.availability(present), from: TestCaller.identity).receipt)
+        let second = try #require(await daemon.dispatch(.availability(other), from: TestCaller.identity).receipt)
         #expect(first.requestDigest != second.requestDigest)
         #expect(first.requestDigest.count == 64)
         #expect(second.requestDigest.count == 64)

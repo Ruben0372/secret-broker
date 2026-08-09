@@ -20,6 +20,12 @@ let package = Package(
         // appear here without security review.
         .target(
             name: "SecretBrokerDaemon",
+            dependencies: ["SecretBrokerContracts", "SecretBrokerCore"]
+        ),
+        // Policy-neutral orchestration: caller verification and serialized
+        // dispatch. Depends on contracts only, so it cannot reach custody.
+        .target(
+            name: "SecretBrokerCore",
             dependencies: ["SecretBrokerContracts"]
         ),
         // Test doubles for the custody seam. Deliberately not exported as a
@@ -31,9 +37,17 @@ let package = Package(
             dependencies: ["SecretBrokerContracts"]
         ),
         .testTarget(
+            name: "SecretBrokerDaemonTests",
+            dependencies: [
+                "SecretBrokerContracts",
+                "SecretBrokerCore",
+            ]
+        ),
+        .testTarget(
             name: "SecretBrokerBootstrapTests",
             dependencies: [
                 "SecretBrokerContracts",
+                "SecretBrokerCore",
                 "SecretBrokerDaemon",
                 "SecretBrokerAdapters",
             ],

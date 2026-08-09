@@ -23,7 +23,7 @@ import Testing
 /// and narrows what can be added unnoticed. It is not airtight.
 @Suite("Artifact capability")
 struct ArtifactCapabilityTests {
-    static let modules = ["SecretBrokerDaemon", "SecretBrokerContracts"]
+    static let modules = ["SecretBrokerDaemon", "SecretBrokerCore", "SecretBrokerContracts"]
 
     /// Needles are assembled from fragments at run time so that neither the
     /// source token scan nor any future text scan can false-positive on this
@@ -46,9 +46,53 @@ struct ArtifactCapabilityTests {
         ]
     }
 
+    /// Source file base names the manifest actually compiles into the module.
+    ///
+    /// Derived from the dumped manifest, target path plus any declared sources
+    /// list, never from a directory glob. A glob answers "what is under
+    /// Sources/<module>", which is not the same question as "what goes into
+    /// the module": a target declaring path "Sources" with an explicit sources
+    /// list compiles files from anywhere under it, and a glob-based
+    /// reconciliation would drop exactly those objects from the scan, turning
+    /// the reconciliation into a way to disable the capability layer. The
+    /// manifest is the authority on module membership, so it is what is read.
+    static func liveSourceBaseNames(for module: String) -> Set<String> {
+        guard let target = BootstrapTestSupport.target(named: module) else {
+            return []
+        }
+        let declaredPath = target["path"] as? String ?? "Sources/\(module)"
+        let root = BootstrapTestSupport.packageRoot.appendingPathComponent(declaredPath)
+
+        var files: [URL] = []
+        if let declaredSources = target["sources"] as? [String] {
+            for entry in declaredSources {
+                let url = root.appendingPathComponent(entry)
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                    continue
+                }
+                if isDirectory.boolValue {
+                    files += BootstrapTestSupport.swiftFiles(under: url)
+                } else if url.pathExtension == "swift" {
+                    files.append(url)
+                }
+            }
+        } else {
+            files = BootstrapTestSupport.swiftFiles(under: root)
+        }
+        return Set(files.map { $0.deletingPathExtension().lastPathComponent })
+    }
+
     /// Searches the active build directory, derived from this test bundle's own
     /// location, so a custom --scratch-path is honoured instead of quietly
     /// scanning nothing.
+    ///
+    /// Object files are reconciled against the current sources (DISC-015).
+    /// SwiftPM leaves the object of a deleted source behind, so without this
+    /// an incremental build reports symbols that no source produces any more:
+    /// the suite stays red on a clean tree and the fix looks like "delete
+    /// .build", which trains people to dismiss the scan. Orphans can only add
+    /// symbols, never hide one, so reconciling cannot mask a real capability.
     static func artifacts(for module: String) throws -> [String] {
         let buildDirectory = BootstrapTestSupport.buildDirectory.path
         let objects = try BootstrapTestSupport.run([
@@ -60,10 +104,22 @@ struct ArtifactCapabilityTests {
             "find", buildDirectory,
             "-name", "lib\(module)*.a",
         ])
-        return (objects.stdout + archives.stdout)
+
+        let liveSources = liveSourceBaseNames(for: module)
+        let objectPaths = objects.stdout
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { path in
+                guard !path.isEmpty else { return false }
+                let fileName = (path as NSString).lastPathComponent
+                guard fileName.hasSuffix(".swift.o") else { return true }
+                return liveSources.contains(String(fileName.dropLast(".swift.o".count)))
+            }
+        let archivePaths = archives.stdout
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+        return objectPaths + archivePaths
     }
 
     static func undefinedSymbols(for module: String) throws -> [String] {
@@ -258,6 +314,35 @@ struct ArtifactCapabilityTests {
                 )
             }
         }
+    }
+
+    @Test("An orphaned object from a deleted source is not scanned (DISC-015)")
+    func orphanedObjectsAreReconciledAway() throws {
+        let module = "SecretBrokerDaemon"
+        let before = try Self.artifacts(for: module)
+        let objectDirectory = try #require(
+            before.first { $0.hasSuffix(".swift.o") }.map { ($0 as NSString).deletingLastPathComponent },
+            "no object directory found for \(module)"
+        )
+
+        // Stand in for the object SwiftPM leaves behind after a source is
+        // deleted. Deliberately not valid Mach-O: if reconciliation fails and
+        // this reaches nm, the failure is loud rather than subtle.
+        let ghost = URL(fileURLWithPath: objectDirectory)
+            .appendingPathComponent("GhostDeletedSource.swift.o")
+        try Data("not a real object file".utf8).write(to: ghost)
+        defer { try? FileManager.default.removeItem(at: ghost) }
+
+        let after = try Self.artifacts(for: module)
+        #expect(
+            !after.contains(ghost.path),
+            "an orphaned object with no matching source was scanned; DISC-015 reconciliation is not working"
+        )
+        #expect(Set(after) == Set(before), "reconciliation changed the live artifact set")
+
+        // And the scan still works end to end with the orphan present.
+        let symbols = try Self.undefinedSymbols(for: module)
+        #expect(!symbols.isEmpty)
     }
 
     @Test("Symbol scan is wired to real artifacts", arguments: modules)

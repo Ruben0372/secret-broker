@@ -39,11 +39,58 @@ struct SeamPinningTests {
         return opened ? result : nil
     }
 
+    /// Declarations beginning with `prefix`, joined across continuation lines.
+    ///
+    /// A declaration split over several lines used to be invisible to the
+    /// return-type parser: the first line carries the name but no `->`, so the
+    /// pin collected the name and silently dropped the type. That is the
+    /// failure mode where a check fires but reports the wrong thing, so the
+    /// scan now accumulates until the signature closes.
     static func lines(in block: String, withPrefix prefix: String) -> [String] {
-        block
-            .split(separator: "\n")
+        let rawLines = block
+            .split(separator: "\n", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { $0.hasPrefix(prefix) }
+
+        func nextNonEmptyIndex(after index: Int) -> Int? {
+            var probe = index + 1
+            while probe < rawLines.count {
+                if !rawLines[probe].isEmpty { return probe }
+                probe += 1
+            }
+            return nil
+        }
+
+        func isBalanced(_ text: String) -> Bool {
+            text.filter { $0 == "(" }.count == text.filter { $0 == ")" }.count
+        }
+
+        var declarations: [String] = []
+        var index = 0
+        while index < rawLines.count {
+            guard rawLines[index].hasPrefix(prefix) else {
+                index += 1
+                continue
+            }
+
+            var accumulated = rawLines[index]
+            var cursor = index
+            while true {
+                // Keep consuming while the parameter list is still open, and
+                // also when the next line begins with the return arrow. A
+                // signature broken before its arrow used to complete at the
+                // closing paren, which parsed as no return type at all and let
+                // the forbidden-return checks skip it as nothing to check.
+                let arrowFollows = nextNonEmptyIndex(after: cursor)
+                    .map { rawLines[$0].hasPrefix("->") } ?? false
+                if isBalanced(accumulated) && !arrowFollows { break }
+                guard let next = nextNonEmptyIndex(after: cursor) else { break }
+                accumulated += " " + rawLines[next]
+                cursor = next
+            }
+            declarations.append(accumulated)
+            index = cursor + 1
+        }
+        return declarations
     }
 
     static func name(ofDeclaration line: String, keyword: String) -> String {
@@ -102,7 +149,7 @@ struct SeamPinningTests {
         )
     }
 
-    @Test("Public daemon API is exactly the bootstrap and handle methods")
+    @Test("Public daemon API is exactly the bootstrap and caller-bound dispatch")
     func publicDaemonAPISurface() throws {
         var names: [String] = []
         var returnTypes: [String] = []
@@ -119,11 +166,14 @@ struct SeamPinningTests {
                 }
             }
         }
+        // ARM-24: the unverified handle(_:) is gone. Every public entry is
+        // caller bound, so there is no path to an operation without an
+        // identity to verify.
         #expect(
-            names.sorted() == ["handle", "start"],
+            names.sorted() == ["dispatch", "start"],
             "public daemon API changed: \(names.sorted()). Widening it needs security review."
         )
-        #expect(Set(returnTypes) == ["BootstrapReport", "BrokeredReceipt"])
+        #expect(Set(returnTypes) == ["BootstrapReport", "DaemonOutcome"])
     }
 
     @Test("No public daemon method returns secret-capable material")
@@ -136,7 +186,15 @@ struct SeamPinningTests {
         ) {
             let text = try String(contentsOf: file, encoding: .utf8)
             for declaration in Self.lines(in: text, withPrefix: "public func ") {
-                guard let returned = Self.returnType(ofDeclaration: declaration) else { continue }
+                guard let returned = Self.returnType(ofDeclaration: declaration) else {
+                    Issue.record("""
+                    UNREADABLE RETURN TYPE: no return type could be read from \(declaration) in \
+                    \(file.lastPathComponent). This is a failure, not a skip: a declaration the \
+                    parser cannot read is a declaration this pin is not checking. Public daemon \
+                    methods must state their return type explicitly, including -> Void.
+                    """)
+                    continue
+                }
                 #expect(
                     !forbiddenReturns.contains(returned),
                     "\(file.lastPathComponent) returns \(returned) from a public method: \(declaration)"
@@ -151,7 +209,14 @@ struct SeamPinningTests {
         let seam = try #require(Self.block(in: text, startingWith: "public protocol SecretCustodian"))
         let forbiddenReturns = ["String", "Data", "[UInt8]"]
         for declaration in Self.lines(in: seam, withPrefix: "func ") {
-            guard let returned = Self.returnType(ofDeclaration: declaration) else { continue }
+            guard let returned = Self.returnType(ofDeclaration: declaration) else {
+                Issue.record("""
+                UNREADABLE RETURN TYPE: no return type could be read from \(declaration) on the \
+                custody seam. This is a failure, not a skip: an unreadable declaration is one this \
+                pin is not checking.
+                """)
+                continue
+            }
             #expect(
                 !forbiddenReturns.contains(returned),
                 "custody seam returns \(returned): \(declaration)"
