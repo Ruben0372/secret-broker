@@ -102,8 +102,15 @@ struct CallerVerificationTests {
         #expect(decision == .denied(.designatedRequirementMismatch))
     }
 
-    @Test("Every denial reason is distinct, so no dimension hides behind another")
+    @Test("Every denial reason the enum declares is reachable and distinct")
     func denialReasonsAreDistinct() async {
+        var reasons: Set<CallerDenial> = []
+        func record(_ verification: CallerVerification) {
+            if case .denied(let reason) = verification {
+                reasons.insert(reason)
+            }
+        }
+
         var wrongBundle = Self.validCaller()
         wrongBundle.bundleIdentifier = "io.attacker.other"
         var wrongTeam = Self.validCaller()
@@ -114,14 +121,31 @@ struct CallerVerificationTests {
         debugCaller.isDebugIdentity = true
         var noToken = Self.validCaller()
         noToken.auditToken = nil
+        var wrongRequirement = Self.validCaller()
+        wrongRequirement.designatedRequirement = "identifier \"io.attacker.other\""
 
-        var reasons: Set<CallerDenial> = []
-        for caller in [wrongBundle, wrongTeam, wrongUser, debugCaller, noToken] {
-            if case .denied(let reason) = await Self.verifier().verify(caller, for: .availability) {
-                reasons.insert(reason)
-            }
+        for caller in [wrongBundle, wrongTeam, wrongUser, debugCaller, noToken, wrongRequirement] {
+            record(await Self.verifier().verify(caller, for: .availability))
         }
-        #expect(reasons.count == 5, "denial reasons collapsed: \(reasons)")
+
+        let narrowed = CallerPolicy(
+            bundleIdentifier: Self.policy.bundleIdentifier,
+            teamIdentifier: Self.policy.teamIdentifier,
+            userIdentifier: Self.policy.userIdentifier,
+            designatedRequirement: Self.policy.designatedRequirement,
+            permittedOperations: []
+        )
+        record(await PolicyCallerVerifier(policy: narrowed).verify(Self.validCaller(), for: .availability))
+        record(await ProductionCallerVerifier().verify(Self.validCaller(), for: .availability))
+
+        #expect(reasons.count == 8, "denial reasons collapsed: \(reasons)")
+        // Completeness against the enum itself: a reason added later that no
+        // test can produce fails here rather than shipping unexercised.
+        let declared = Set(CallerDenial.allCases)
+        #expect(
+            declared == reasons,
+            "denial reasons not reached by any case: \(declared.subtracting(reasons))"
+        )
     }
 }
 

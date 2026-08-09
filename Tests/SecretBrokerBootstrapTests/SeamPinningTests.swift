@@ -47,32 +47,48 @@ struct SeamPinningTests {
     /// failure mode where a check fires but reports the wrong thing, so the
     /// scan now accumulates until the signature closes.
     static func lines(in block: String, withPrefix prefix: String) -> [String] {
-        var declarations: [String] = []
-        var pending: String?
+        let rawLines = block
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
 
-        for rawLine in block.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            if var accumulating = pending {
-                accumulating += " " + line
-                if line.contains("{") || line.hasSuffix(")") && accumulating.contains("->") {
-                    declarations.append(accumulating)
-                    pending = nil
-                } else {
-                    pending = accumulating
-                }
+        func nextNonEmptyIndex(after index: Int) -> Int? {
+            var probe = index + 1
+            while probe < rawLines.count {
+                if !rawLines[probe].isEmpty { return probe }
+                probe += 1
+            }
+            return nil
+        }
+
+        func isBalanced(_ text: String) -> Bool {
+            text.filter { $0 == "(" }.count == text.filter { $0 == ")" }.count
+        }
+
+        var declarations: [String] = []
+        var index = 0
+        while index < rawLines.count {
+            guard rawLines[index].hasPrefix(prefix) else {
+                index += 1
                 continue
             }
-            guard line.hasPrefix(prefix) else { continue }
-            // Complete on one line when it opens a body or is a protocol
-            // requirement with no body.
-            if line.contains("{") || (line.contains(")") && !line.hasSuffix(",")) {
-                declarations.append(line)
-            } else {
-                pending = line
+
+            var accumulated = rawLines[index]
+            var cursor = index
+            while true {
+                // Keep consuming while the parameter list is still open, and
+                // also when the next line begins with the return arrow. A
+                // signature broken before its arrow used to complete at the
+                // closing paren, which parsed as no return type at all and let
+                // the forbidden-return checks skip it as nothing to check.
+                let arrowFollows = nextNonEmptyIndex(after: cursor)
+                    .map { rawLines[$0].hasPrefix("->") } ?? false
+                if isBalanced(accumulated) && !arrowFollows { break }
+                guard let next = nextNonEmptyIndex(after: cursor) else { break }
+                accumulated += " " + rawLines[next]
+                cursor = next
             }
-        }
-        if let leftover = pending {
-            declarations.append(leftover)
+            declarations.append(accumulated)
+            index = cursor + 1
         }
         return declarations
     }
@@ -170,7 +186,15 @@ struct SeamPinningTests {
         ) {
             let text = try String(contentsOf: file, encoding: .utf8)
             for declaration in Self.lines(in: text, withPrefix: "public func ") {
-                guard let returned = Self.returnType(ofDeclaration: declaration) else { continue }
+                guard let returned = Self.returnType(ofDeclaration: declaration) else {
+                    Issue.record("""
+                    UNREADABLE RETURN TYPE: no return type could be read from \(declaration) in \
+                    \(file.lastPathComponent). This is a failure, not a skip: a declaration the \
+                    parser cannot read is a declaration this pin is not checking. Public daemon \
+                    methods must state their return type explicitly, including -> Void.
+                    """)
+                    continue
+                }
                 #expect(
                     !forbiddenReturns.contains(returned),
                     "\(file.lastPathComponent) returns \(returned) from a public method: \(declaration)"
@@ -185,7 +209,14 @@ struct SeamPinningTests {
         let seam = try #require(Self.block(in: text, startingWith: "public protocol SecretCustodian"))
         let forbiddenReturns = ["String", "Data", "[UInt8]"]
         for declaration in Self.lines(in: seam, withPrefix: "func ") {
-            guard let returned = Self.returnType(ofDeclaration: declaration) else { continue }
+            guard let returned = Self.returnType(ofDeclaration: declaration) else {
+                Issue.record("""
+                UNREADABLE RETURN TYPE: no return type could be read from \(declaration) on the \
+                custody seam. This is a failure, not a skip: an unreadable declaration is one this \
+                pin is not checking.
+                """)
+                continue
+            }
             #expect(
                 !forbiddenReturns.contains(returned),
                 "custody seam returns \(returned): \(declaration)"

@@ -1,6 +1,6 @@
 /// Why a caller was refused. Distinct cases on purpose: a single generic
 /// denial would let a widened check hide behind an unchanged refusal.
-public enum CallerDenial: String, Sendable, Hashable, Codable {
+public enum CallerDenial: String, Sendable, Hashable, Codable, CaseIterable {
     case missingAuditToken
     case debugIdentity
     case bundleMismatch

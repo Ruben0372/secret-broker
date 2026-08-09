@@ -54,6 +54,47 @@ struct SerializedDispatchTests {
         #expect(completed == 16, "expected all 16 dispatches to complete, got \(completed)")
     }
 
+    /// Non-vacuity control for the two peak == 1 assertions.
+    ///
+    /// Those assertions only mean something if the same workload would overlap
+    /// without the dispatcher. Evidence held outside the repository proves
+    /// nothing about a later change, so the control runs here: identical shape,
+    /// identical yields, no lock.
+    ///
+    /// Scheduling is not guaranteed, so a single run could serialize by luck.
+    /// It retries and fails only if every attempt serialized, which would mean
+    /// the workload cannot demonstrate overlap and the strict assertions above
+    /// are proving nothing.
+    @Test("Control: the identical workload without the dispatcher does overlap")
+    func unlockedWorkloadOverlaps() async {
+        var bestPeak = 0
+
+        for _ in 0..<5 {
+            let witness = ConcurrencyWitness()
+            await withTaskGroup(of: Void.self) { group in
+                for _ in 0..<16 {
+                    group.addTask {
+                        await witness.enter()
+                        for _ in 0..<8 { await Task.yield() }
+                        await witness.leave()
+                    }
+                }
+            }
+            bestPeak = max(bestPeak, await witness.peak)
+            if bestPeak >= 2 { break }
+        }
+
+        #expect(
+            bestPeak >= 2,
+            """
+            the unlocked workload never overlapped across five attempts, peak \(bestPeak). \
+            The serialization assertions cannot be trusted while this control cannot \
+            demonstrate overlap: peak == 1 would then be a property of the workload, not of \
+            the dispatcher.
+            """
+        )
+    }
+
     @Test("Serialization holds across suspension inside the operation")
     func serializationSurvivesSuspension() async {
         let witness = ConcurrencyWitness()
