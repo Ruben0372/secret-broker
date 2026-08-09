@@ -14,12 +14,18 @@ public enum PackageGovernance {
     """
 
     public static let enforcementModel = """
-    Enforcement model: the forbidden-token scan over package sources is a \
-    best-effort review aid, not a control. It matches text and ordinary Swift \
-    can evade it. The controls that hold the boundary are the daemon \
-    dependency allowlist, the unexported adapters target, and the seam and API \
-    pinning tests that fix the custody protocol method set, the request case \
-    list, and the public daemon return types.
+    Enforcement model, layered: the daemon dependency allowlist, products that \
+    do not export the adapters target, seam and public API pinning, and an \
+    artifact assertion over the compiled daemon module's undefined symbols, \
+    which catches a capability regardless of how its source is spelled. The \
+    forbidden-token scan over package sources is a best-effort review aid, not \
+    a control, because it matches text and ordinary Swift can evade it. \
+    Residual limit: the artifact assertion is a denylist of named symbol \
+    families, so a capability reached through an already-linked Foundation \
+    surface, ProcessInfo environment access being the clearest example, \
+    resolves inside Foundation and never appears in the daemon's undefined \
+    symbols. These layers raise the cost of an obfuscated capability; they do \
+    not make the boundary airtight.
     """
 
     public static let releaseSigningPrerequisite = """

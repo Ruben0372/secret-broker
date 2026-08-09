@@ -52,6 +52,30 @@ struct DigestKeyingTests {
         )
     }
 
+    @Test("Encoded receipt carries no key, salt, or nonce field")
+    func receiptCarriesNoKeyMaterial() async throws {
+        let reference = try SecretReference(namespace: "test", name: "FAKE_A")
+        let daemon = DaemonBootstrap(custodian: InMemorySecretCustodian(known: [reference]))
+        let receipt = await daemon.handle(.availability(reference))
+        let data = try JSONEncoder().encode(receipt)
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        #expect(Set(object.keys) == ["requestDigest", "resultClass"])
+        for field in object.keys {
+            let lowered = field.lowercased()
+            #expect(!lowered.contains("key"))
+            #expect(!lowered.contains("salt"))
+            #expect(!lowered.contains("nonce"))
+            #expect(!lowered.contains("secret"))
+        }
+        // Without a key, salt, or nonce on the wire, a receipt cannot be
+        // replayed against the digest offline even by its own recipient.
+        let encoded = String(decoding: data, as: UTF8.self).lowercased()
+        #expect(!encoded.contains("salt"))
+        #expect(!encoded.contains("nonce"))
+    }
+
     @Test("Distinct references still separate within one boot")
     func distinctReferencesSeparate() async throws {
         let present = try SecretReference(namespace: "test", name: "FAKE_A")

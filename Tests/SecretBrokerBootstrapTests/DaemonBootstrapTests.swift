@@ -86,5 +86,10 @@ struct DaemonBootstrapTests {
         #expect(PackageGovernance.enforcementModel.contains("best-effort review aid"))
         #expect(PackageGovernance.enforcementModel.contains("not a control"))
         #expect(PackageGovernance.enforcementModel.contains("dependency allowlist"))
+        #expect(PackageGovernance.enforcementModel.contains("undefined symbols"))
+        // The residual limit must stay stated, and no record may claim the
+        // boundary is airtight.
+        #expect(PackageGovernance.enforcementModel.contains("ProcessInfo"))
+        #expect(PackageGovernance.enforcementModel.contains("not make the boundary airtight"))
     }
 }
