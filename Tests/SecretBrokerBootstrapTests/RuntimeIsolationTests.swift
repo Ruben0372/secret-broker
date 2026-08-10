@@ -24,8 +24,26 @@ struct RuntimeIsolationTests {
         "setenv",
         "putenv",
         "processInfo.environment",
+    ]
+
+    /// Keychain tokens, scoped to the runtime modules rather than the whole
+    /// tree.
+    ///
+    /// These are forbidden in the daemon, core and contracts, which are exactly
+    /// the three modules the ARTIFACT symbol scan covers at the linker level.
+    /// That scan is the control; this source scan is a review aid. Scoping the
+    /// tokens to where the real control also applies is therefore narrowing to
+    /// where enforcement exists, not opening a hole: SecretBrokerAdapters is
+    /// deliberately outside both, because reviewed custody lives there and
+    /// cannot reach the runtime, which the dependency allowlist and the daemon
+    /// artifact scan both prove independently.
+    static let runtimeOnlyForbiddenTokens = [
         "import Security",
         "SecItem",
+    ]
+
+    static let runtimeModules = [
+        "SecretBrokerDaemon", "SecretBrokerCore", "SecretBrokerContracts",
     ]
 
     @Test("Manifest declares the contracts, daemon, and bootstrap test targets")
@@ -152,6 +170,29 @@ struct RuntimeIsolationTests {
                 "target \(name) declares \(raw) dependencies but only \(parsed) parsed; an unparsed entry would silently satisfy an allowlist check"
             )
         }
+    }
+
+    @Test("Keychain tokens stay out of the runtime modules")
+    func keychainTokensStayOutOfRuntimeModules() throws {
+        var scanned = 0
+        for module in Self.runtimeModules {
+            let directory = BootstrapTestSupport.packageRoot
+                .appendingPathComponent("Sources")
+                .appendingPathComponent(module)
+            let files = BootstrapTestSupport.swiftFiles(under: directory)
+            #expect(!files.isEmpty, "no sources scanned for \(module)")
+            for file in files {
+                let text = try String(contentsOf: file, encoding: .utf8)
+                for token in Self.runtimeOnlyForbiddenTokens {
+                    #expect(
+                        !text.contains(token),
+                        "\(module)/\(file.lastPathComponent) contains \(token); custody must not reach the runtime"
+                    )
+                }
+                scanned += 1
+            }
+        }
+        #expect(scanned >= 8, "scanned only \(scanned) runtime sources")
     }
 
     @Test("Runtime sources exist and cannot reach the export path")
