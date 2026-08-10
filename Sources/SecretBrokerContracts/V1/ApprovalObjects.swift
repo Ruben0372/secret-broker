@@ -62,6 +62,8 @@ public enum ApprovalRejection: String, Sendable, Hashable, CaseIterable {
     case invalidSequence
     case genesisLinkMismatch
     case nonAdvancingState
+    case nonCanonicalEncoding
+    case malformedEncoding
 }
 
 /// Form validation for an approval object presented as a specific type.
@@ -78,9 +80,42 @@ public enum ApprovalObjectValidator {
     /// predecessor could produce, so it cannot be forged as one.
     public static let genesisDigest = String(repeating: "0", count: 64)
 
+    /// The mandatory byte-level entry point.
+    ///
+    /// Canonical-on-input runs HERE, on the raw bytes, before anything parses
+    /// them. That ordering is the whole point and is not an implementation
+    /// detail: a validator whose only entry takes an already-parsed dictionary
+    /// has already lost the duplicate-key ambiguity, because the parser
+    /// silently discarded one of the two values before the validator ever ran.
+    ///
+    /// Concretely, an object carrying `domain` twice, once task-approval and
+    /// once owner-control, is a different object to a reader that keeps the
+    /// first key than to one that keeps the last. One set of bytes is then task
+    /// authority to one implementation and owner control to another, decided by
+    /// nothing but which parser happens to read it. Re-encoding collapses the
+    /// duplicate to a single key, so the bytes differ from the input and this
+    /// refuses, identically for both orderings and for every reader.
+    ///
+    /// Callers holding bytes must use this. `validate(_:as:)` on a parsed
+    /// dictionary remains available for callers that legitimately already have
+    /// a value, but it cannot see what the parse threw away.
+    public static func validate(
+        bytes: [UInt8],
+        as type: ApprovalObjectType
+    ) -> ApprovalRejection? {
+        guard CanonicalJSON.isCanonical(bytes) else { return .nonCanonicalEncoding }
+        guard let object = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any] else {
+            return .malformedEncoding
+        }
+        return validate(object, as: type)
+    }
+
     /// Validates `object` AS `type`. The expected schema, family and role come
     /// from `type`, so presenting a genuine object of one type where another is
     /// required is refused by construction rather than by remembering to check.
+    ///
+    /// Prefer `validate(bytes:as:)` when the bytes are available: this entry
+    /// cannot detect a duplicate key, because the parse already resolved it.
     public static func validate(
         _ object: [String: Any],
         as type: ApprovalObjectType

@@ -86,8 +86,14 @@ struct SubstitutionMatrixTests {
             #expect(rejection != nil, "\(name): ACCEPTED by \(validatorName); substitution is possible")
             driven += 1
         }
-        // Non-vacuity: a matrix that quietly drove nothing would pass.
-        #expect(driven >= 28, "drove only \(driven) of 31 cases; skipped \(skipped)")
+        // Exact, not a tolerance. A tolerance is what let two published cases
+        // sit undriven while the suite still read as green, which is how the
+        // duplicate-key bypass survived: the count absorbed the gap instead of
+        // naming it.
+        #expect(
+            driven == cases.count,
+            "drove \(driven) of \(cases.count) published cases; UNDRIVEN: \(skipped)"
+        )
     }
 
     @Test("Published task-domain cross-domain rejections are all refused")
@@ -96,17 +102,34 @@ struct SubstitutionMatrixTests {
         #expect(cases.count == 14, "expected exactly 14 published cases, found \(cases.count)")
 
         var driven = 0
+        var skipped: [String] = []
         for testCase in cases {
             let name = testCase["case"] as? String ?? "unnamed"
             guard let validatorName = testCase["expected_validator"] as? String,
-                  let type = Self.validatorTypes[validatorName],
-                  let object = testCase["object"] as? [String: Any]
-            else { continue }
-            let rejection = ApprovalObjectValidator.validate(object, as: type)
+                  let type = Self.validatorTypes[validatorName]
+            else {
+                skipped.append(name)
+                continue
+            }
+            // Cases carrying raw_json are byte-level by construction: a
+            // duplicate key cannot survive a parse, so they are driven through
+            // the byte entry rather than skipped for lacking a parsed object.
+            let rejection: ApprovalRejection?
+            if let raw = testCase["raw_json"] as? String {
+                rejection = ApprovalObjectValidator.validate(bytes: Array(raw.utf8), as: type)
+            } else if let object = testCase["object"] as? [String: Any] {
+                rejection = ApprovalObjectValidator.validate(object, as: type)
+            } else {
+                skipped.append(name)
+                continue
+            }
             #expect(rejection != nil, "\(name): ACCEPTED by \(validatorName); substitution is possible")
             driven += 1
         }
-        #expect(driven >= 12, "drove only \(driven) of 14 cases")
+        #expect(
+            driven == cases.count,
+            "drove \(driven) of \(cases.count) published cases; UNDRIVEN: \(skipped)"
+        )
     }
 
     /// The bar stated directly, independent of any published case list: take
