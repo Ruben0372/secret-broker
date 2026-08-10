@@ -102,6 +102,42 @@ struct OperationRegistryTests {
         )
     }
 
+    /// The reviewed vocabulary, pinned exactly.
+    ///
+    /// This is the control; the substring scans below are the readable failure
+    /// on top of it. The distinction matters, and it is the difference between
+    /// a guarantee and a habit: a scan for command-shaped names catches
+    /// `.commandLine` and misses `.payload`, `.opaqueBlob` or `.freeText`, any
+    /// of which is a generic escape wearing an innocuous name. Only an exact
+    /// set makes EVERY addition fail until somebody reviews it, which is the
+    /// property Layer 1 actually needs.
+    ///
+    /// Extending either set is a reviewed act. If a new case belongs here, add
+    /// it deliberately and say why. Do not widen the pin to make a build pass.
+    @Test("The capability-bearing vocabularies are exactly the reviewed sets")
+    func vocabulariesMatchTheReviewedSets() {
+        #expect(
+            Set(FieldKind.allCases.map(\.rawValue)) == [
+                "booleanFlag", "enumeratedCode", "digestHex", "credentialHandle",
+                "count", "timestampSeconds", "operationName", "redactedReasonCode",
+                "rawSecretMaterial",
+            ],
+            "the field vocabulary changed: \(FieldKind.allCases.map(\.rawValue).sorted()). A new kind widens what an operation can be, and is a reviewed change."
+        )
+        #expect(
+            Set(OperationRoute.allCases.map(\.rawValue)) == [
+                "custodyAvailabilityProbe", "disposableTestSink",
+            ],
+            "the route set changed: \(OperationRoute.allCases.map(\.rawValue).sorted()). A new route is a new destination, and is a reviewed change."
+        )
+        #expect(
+            Set(OperationCapability.allCases.map(\.rawValue)) == [
+                "availabilityProbe", "credentialHandleUse", "ownerControl",
+            ],
+            "the capability set changed: \(OperationCapability.allCases.map(\.rawValue).sorted()). A new capability is a new thing a caller can be granted."
+        )
+    }
+
     @Test("The field vocabulary contains no command-shaped or free-form kind")
     func fieldVocabularyHasNoEscapeHatch() {
         // A command runner and a generic proxy are built out of parts. If no
