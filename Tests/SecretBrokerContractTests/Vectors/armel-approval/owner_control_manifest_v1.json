@@ -1,0 +1,31 @@
+{
+  "name": "owner_control_manifest_v1",
+  "description": "Canonical owner-control manifest. Describes a change to the control plane itself, not a task effect. The blast radius of an owner-control change is every future task governed by the changed control, which is why this domain is cryptographically distinct from task approval and carries stronger conditions. signing_context_tag is the domain separation tag for this object's domain. signing_preimage_hex is tag || 0x00 || canonical_json bytes, and signing_preimage_sha256_hex is its SHA-256. This is the byte range a signer would cover. Nothing in this repository signs or verifies; only the preimage is defined. The tag is NOT a field of the object: a verifier derives it from the object type it is verifying, so a caller cannot supply or substitute it. That is what makes the two domains cryptographically distinct rather than merely distinguishable: a signature over a task-approval object cannot be a valid signature over an owner-control object even if every field were manipulated to match, because the covered bytes differ in a prefix neither party controls.",
+  "object": {
+    "schema": "armel.owner-control.manifest",
+    "schema_version": 1,
+    "domain": "armel.owner-control",
+    "control_manifest_id": "ocm-0000000000000001-synthetic",
+    "audience": "armel-control.dev.synthetic",
+    "issued_at": "2026-08-09T00:00:00Z",
+    "expires_at": "2026-08-09T00:10:00Z",
+    "nonce": "ocn-0000000000000001-synthetic",
+    "control_action": {
+      "kind": "key.rotate",
+      "target": "device:dev-0000000000000001-synthetic",
+      "scope": "approval-signing-key"
+    }
+  },
+  "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}",
+  "sha256_hex": "ae37c66a6bff603a78e10c91ccb4b4c1260c2759e4f22b96f7884f6ef582f0bc",
+  "signing_context_tag": "armel.sig.v1.owner-control",
+  "signing_preimage_hex": "61726d656c2e7369672e76312e6f776e65722d636f6e74726f6c007b2261756469656e6365223a2261726d656c2d636f6e74726f6c2e6465762e73796e746865746963222c22636f6e74726f6c5f616374696f6e223a7b226b696e64223a226b65792e726f74617465222c2273636f7065223a22617070726f76616c2d7369676e696e672d6b6579222c22746172676574223a226465766963653a6465762d303030303030303030303030303030312d73796e746865746963227d2c22636f6e74726f6c5f6d616e69666573745f6964223a226f636d2d303030303030303030303030303030312d73796e746865746963222c22646f6d61696e223a2261726d656c2e6f776e65722d636f6e74726f6c222c22657870697265735f6174223a22323032362d30382d30395430303a31303a30305a222c226973737565645f6174223a22323032362d30382d30395430303a30303a30305a222c226e6f6e6365223a226f636e2d303030303030303030303030303030312d73796e746865746963222c22736368656d61223a2261726d656c2e6f776e65722d636f6e74726f6c2e6d616e6966657374222c22736368656d615f76657273696f6e223a317d",
+  "signing_preimage_sha256_hex": "e9605bce8d10c41e4af39ac697abce307ba049bfad1378c14013fc5b62e4e6bc",
+  "control_action_kinds": [
+    "device.enroll",
+    "device.revoke",
+    "key.rotate",
+    "policy.change",
+    "retention.change"
+  ]
+}

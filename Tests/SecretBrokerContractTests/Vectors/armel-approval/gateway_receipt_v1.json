@@ -1,0 +1,18 @@
+{
+  "name": "gateway_receipt_v1",
+  "description": "Canonical Gateway receipt. Records that a manifest was handled and checkpointed. It deliberately carries no decision outcome, no approval proof, and no Signal content, per the AGENTS.md rule that the Gateway does not store approval proof. A receipt attests recording, never approval.",
+  "object": {
+    "schema": "armel.gateway.receipt",
+    "schema_version": 1,
+    "domain": "armel.task-approval",
+    "receipt_id": "arc-0000000000000001-synthetic",
+    "manifest_id": "amf-0000000000000001-synthetic",
+    "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+    "checkpoint_index": 1,
+    "key_role": "gateway-receipt-signer",
+    "recorded_at": "2026-08-09T00:01:05Z"
+  },
+  "canonical_json": "{\"checkpoint_index\":1,\"domain\":\"armel.task-approval\",\"key_role\":\"gateway-receipt-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"receipt_id\":\"arc-0000000000000001-synthetic\",\"recorded_at\":\"2026-08-09T00:01:05Z\",\"schema\":\"armel.gateway.receipt\",\"schema_version\":1}",
+  "sha256_hex": "9d59f642a645df0d6bc3dcffcebc3dcff029ec4ffe82de228a1df3f6a984ef05",
+  "bound_to_vector": "task_manifest_v1"
+}

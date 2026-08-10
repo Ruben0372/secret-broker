@@ -1,0 +1,22 @@
+{
+  "name": "owner_control_continuity_v1",
+  "description": "Canonical owner-control continuity record. Links the previous control-plane state digest to the new one at a monotonic sequence. Sequence 0 links from the all-zero genesis digest. SCOPE, stated precisely because the weaker property is easy to mistake for the stronger one: what this contract enforces is PAIRWISE ADJACENCY. Given two records, validateFollows proves the second is the immediate successor of the first, and that is all it proves. It does NOT detect an unanchored segment: records 5 and 6 presented without 0 through 4 validate completely, because nothing here anchors a chain to sequence 0. A withheld or dropped prefix is therefore undetectable at this layer, and so is a reordering that preserves local adjacency. The insert, drop and reorder guarantee requires ANCHORED WHOLE-CHAIN REPLAY from sequence 0, which needs storage and traversal and is deferred to the ledger issue. Do not rely on this contract for that guarantee. Why the chain exists at all: a task decision authorises one effect once and leaves no ordering obligation, while a control change alters what every future task may do, so the sequence of control changes must be tamper evident to the extent this layer can make it so. signing_context_tag is the domain separation tag for this object's domain. signing_preimage_hex is tag || 0x00 || canonical_json bytes, and signing_preimage_sha256_hex is its SHA-256. This is the byte range a signer would cover. Nothing in this repository signs or verifies; only the preimage is defined. The tag is NOT a field of the object: a verifier derives it from the object type it is verifying, so a caller cannot supply or substitute it. That is what makes the two domains cryptographically distinct rather than merely distinguishable: a signature over a task-approval object cannot be a valid signature over an owner-control object even if every field were manipulated to match, because the covered bytes differ in a prefix neither party controls.",
+  "object": {
+    "schema": "armel.owner-control.continuity",
+    "schema_version": 1,
+    "domain": "armel.owner-control",
+    "continuity_id": "occ-0000000000000001-synthetic",
+    "control_manifest_id": "ocm-0000000000000001-synthetic",
+    "sequence": 0,
+    "previous_state_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "new_state_digest": "ae37c66a6bff603a78e10c91ccb4b4c1260c2759e4f22b96f7884f6ef582f0bc",
+    "key_role": "owner-control-continuity-recorder",
+    "recorded_at": "2026-08-09T00:02:05Z"
+  },
+  "canonical_json": "{\"continuity_id\":\"occ-0000000000000001-synthetic\",\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"key_role\":\"owner-control-continuity-recorder\",\"new_state_digest\":\"ae37c66a6bff603a78e10c91ccb4b4c1260c2759e4f22b96f7884f6ef582f0bc\",\"previous_state_digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"recorded_at\":\"2026-08-09T00:02:05Z\",\"schema\":\"armel.owner-control.continuity\",\"schema_version\":1,\"sequence\":0}",
+  "sha256_hex": "e1d6e189524bb5e19052bc403e7297b3932ec3ead4773fa04f639e326eb1c21d",
+  "signing_context_tag": "armel.sig.v1.owner-control",
+  "signing_preimage_hex": "61726d656c2e7369672e76312e6f776e65722d636f6e74726f6c007b22636f6e74696e756974795f6964223a226f63632d303030303030303030303030303030312d73796e746865746963222c22636f6e74726f6c5f6d616e69666573745f6964223a226f636d2d303030303030303030303030303030312d73796e746865746963222c22646f6d61696e223a2261726d656c2e6f776e65722d636f6e74726f6c222c226b65795f726f6c65223a226f776e65722d636f6e74726f6c2d636f6e74696e756974792d7265636f72646572222c226e65775f73746174655f646967657374223a2261653337633636613662666636303361373865313063393163636234623463313236306332373539653466323262393666373838346636656635383266306263222c2270726576696f75735f73746174655f646967657374223a2230303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030222c227265636f726465645f6174223a22323032362d30382d30395430303a30323a30355a222c22736368656d61223a2261726d656c2e6f776e65722d636f6e74726f6c2e636f6e74696e75697479222c22736368656d615f76657273696f6e223a312c2273657175656e6365223a307d",
+  "signing_preimage_sha256_hex": "32df632ad3714e2bee72c409884dde6a69e6d79688afec2c8bf31fff0253c8d6",
+  "genesis_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+}

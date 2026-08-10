@@ -1,0 +1,61 @@
+{
+  "name": "canonical_json_structure_v1",
+  "description": "Canonical JSON structural oracle: key ordering and number form. This vector pins the canonical JSON byte rule so an independent verifier can reproduce it as a BLACK BOX, without reading either encoder. Each case gives an input and the exact canonical output, pinned BOTH as text and as expected_canonical_hex (the hex of the UTF-8 output bytes). The hex is authoritative: for the very characters this vector exists to pin, a reader cannot tell from the text alone whether a byte sequence is an escape or a literal, and the hex removes that ambiguity without requiring the consumer to first interpret this file's own JSON escaping. Every expected value here was MEASURED from both the Swift and the Go implementations and confirmed byte-identical; none of it is assumed. Inputs are given as JSON strings, so a control character appears here as its own JSON escape and is decoded to the raw scalar before being handed to the encoder.",
+  "rules": [
+    "Object keys are sorted by UTF-8 byte value, not by Unicode collation and not by insertion order.",
+    "No insignificant whitespace anywhere.",
+    "Integers are plain decimal with no exponent, no fraction, and no leading plus."
+  ],
+  "UNPINNED_key_identity": {
+    "status": "DEFERRED, tracked as DISC-052. This vector set does NOT pin it, and no case here blesses either behaviour.",
+    "the_case": "An object carrying two keys that are DISTINCT byte sequences but Unicode-canonically-equivalent, for example U+00E9 (utf-8 c3a9) and e followed by U+0301 (utf-8 65cc81).",
+    "measured_divergence": "Measured 2026-08-09 on both implementations. Go keeps BOTH members and emits them byte-sorted. Swift COLLAPSES them to one, because CanonicalValue.object is a Swift Dictionary and Swift String equality uses Unicode canonical equivalence; constructed as a dictionary literal the same pair TRAPS rather than collapsing.",
+    "why_unpinned": "Pinning either output would silently bless one implementation as correct, and a downstream verifier would then enforce that choice as a constant. Which behaviour is correct is a contract-semantics decision with the ARM-32 duplicate-key precedent as the steer, so it is the owner's to make, not this vector's.",
+    "consequence_for_consumers": "This vector set is a SUFFICIENT oracle for escaping, unicode, and structure. It is NOT a complete oracle for key identity. A verifier reproducing these vectors is not thereby guaranteed to agree on canonically-equivalent duplicate keys.",
+    "not_reachable_today": "Every current schema uses fixed ASCII keys, so no contract object can carry such a pair; the divergence was reached only by driving the encoder directly."
+  },
+  "cases": [
+    {
+      "case": "keys_ascii_case_ordering",
+      "expected_canonical": "{\"A\":\"2\",\"a\":\"1\"}",
+      "expected_canonical_hex": "7b2241223a2232222c2261223a2231227d",
+      "note": "Keys are ordered by UTF-8 BYTE value, so uppercase sorts before lowercase."
+    },
+    {
+      "case": "keys_ascii_before_nonascii",
+      "expected_canonical": "{\"z\":\"1\",\"é\":\"2\"}",
+      "expected_canonical_hex": "7b227a223a2231222c22c3a9223a2232227d",
+      "note": "Byte ordering, not collation: 'z' (0x7a) sorts before a two-byte non-ASCII key."
+    },
+    {
+      "case": "keys_empty_and_nonempty",
+      "expected_canonical": "{\"\":\"1\",\"a\":\"2\"}",
+      "expected_canonical_hex": "7b22223a2231222c2261223a2232227d",
+      "note": "The empty key is permitted and sorts first."
+    },
+    {
+      "case": "number_zero",
+      "expected_canonical": "{\"n\":0}",
+      "expected_canonical_hex": "7b226e223a307d",
+      "note": "Plain decimal, no sign, no exponent, no fraction."
+    },
+    {
+      "case": "number_negative",
+      "expected_canonical": "{\"n\":-1}",
+      "expected_canonical_hex": "7b226e223a2d317d",
+      "note": "Leading minus, no other decoration."
+    },
+    {
+      "case": "number_beyond_double_precision",
+      "expected_canonical": "{\"n\":9007199254740993}",
+      "expected_canonical_hex": "7b226e223a393030373139393235343734303939337d",
+      "note": "9007199254740993 exceeds exact double precision and must survive as an integer, so an implementation routing integers through a float would fail here."
+    },
+    {
+      "case": "number_min_int64",
+      "expected_canonical": "{\"n\":-9223372036854775808}",
+      "expected_canonical_hex": "7b226e223a2d393232333337323033363835343737353830387d",
+      "note": "The extreme negative bound."
+    }
+  ]
+}
