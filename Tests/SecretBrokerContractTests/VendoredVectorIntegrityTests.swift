@@ -12,6 +12,7 @@ struct VendoredVectorIntegrityTests {
     static let expectedApprovalVectors = [
         "approval_request_v1",
         "canonical_json_escaping_v1",
+        "canonical_json_key_rejects_v1",
         "canonical_json_structure_v1",
         "canonical_json_unicode_v1",
         "cross_domain_rejection_v1",
@@ -51,7 +52,7 @@ struct VendoredVectorIntegrityTests {
             verified += 1
         }
         // Non-vacuity: the loop must actually have run over every vector.
-        #expect(verified == 17, "verified \(verified) approval vectors, expected exactly 17")
+        #expect(verified == 18, "verified \(verified) approval vectors, expected exactly 18")
     }
 
     @Test("The digest listing names every vendored vector and nothing else")

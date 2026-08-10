@@ -7,7 +7,7 @@ here as independent corroboration of anything: a provenance search that finds a
 sentence in this directory has found the source repository's words, copied.
 
 - Source repository: `Ruben0372/armel-approval`
-- Source commit: `68285bfd` (merge of PR 5, ARM-47 canonical JSON escaping vectors; supersedes `6f36fe66a427`)
+- Source commit: `5f90bbdd` (merge of ARM-48 canonical key-rejection vectors; supersedes `68285bfd`, which superseded `6f36fe66a427`)
 - Source path: `packages/vectors/vectors/`
 - Vendored by: ARM-25 / B1-002, secret-broker
 - Vendored at: 2026-08-09
@@ -46,14 +46,20 @@ change, so a vector cannot catch a misreading baked into both at once. It
 catches drift, cross-language asymmetry, and regression. Independent review of
 a vector is therefore review of the specification claim, not only of the data.
 
-## Known residual, tracked as ARM-48
+## ARM-48 key-identity oracle now exists, and this consumer has NOT implemented against it
 
-Duplicate map keys are rejected by byte equality on both sides. Two keys that
-differ in bytes but are canonically equivalent, for example under a Unicode
-normalisation, are not currently treated as duplicates. The owner decision is
-reject-as-duplicate on both sides, extending ARM-32 F1, and lands as ARM-48.
-Named here so a consumer cannot read the duplicate-key rule as already covering
-canonical equivalence.
+`canonical_json_key_rejects_v1` arrived with ARM-48 and is vendored here as
+part of the registered set. Vendoring it pins the bytes; it does not mean this
+repository conforms to what it describes.
+
+State it plainly, because a vendored vector sitting in the corpus can easily
+read as a claim of conformance: the secret-broker canonical JSON decoder still
+rejects duplicate map keys by BYTE equality only. Keys that differ in bytes but
+are Unicode-canonically-equivalent are still not treated as duplicates here. The
+vector now describes the reject-as-duplicate behaviour and carries its reason
+codes, so the oracle exists and a future issue can implement against it. This
+re-vendor was scoped to vector data and provenance, with no verifier logic
+change, so that implementation is follow-up work and is not claimed here.
 
 ## ARM-47 escaping oracle, now closed
 

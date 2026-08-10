@@ -31,7 +31,7 @@ enum ContractVectorFixtures {
     /// record of where it came from.
     enum Provenance {
         static let approvalRepository = "Ruben0372/armel-approval"
-        static let approvalCommit = "68285bfd"
+        static let approvalCommit = "5f90bbdd"
         static let authorityRepository = "Ruben0372/armel"
         static let authorityCommit = "b3624695"
     }

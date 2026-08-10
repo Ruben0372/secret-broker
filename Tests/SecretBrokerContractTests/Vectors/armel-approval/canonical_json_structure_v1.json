@@ -4,15 +4,16 @@
   "rules": [
     "Object keys are sorted by UTF-8 byte value, not by Unicode collation and not by insertion order.",
     "No insignificant whitespace anywhere.",
-    "Integers are plain decimal with no exponent, no fraction, and no leading plus."
+    "Integers are plain decimal with no exponent, no fraction, and no leading plus.",
+    "Object keys are restricted to the ASCII repertoire (ARM-48). Non-ASCII object keys are refused with canonical.key-repertoire-unsupported. This constrains KEYS only; string VALUES keep full Unicode."
   ],
   "UNPINNED_key_identity": {
-    "status": "DEFERRED, tracked as DISC-052. This vector set does NOT pin it, and no case here blesses either behaviour.",
+    "status": "RESOLVED by ARM-48. Previously deferred as DISC-052.",
     "the_case": "An object carrying two keys that are DISTINCT byte sequences but Unicode-canonically-equivalent, for example U+00E9 (utf-8 c3a9) and e followed by U+0301 (utf-8 65cc81).",
-    "measured_divergence": "Measured 2026-08-09 on both implementations. Go keeps BOTH members and emits them byte-sorted. Swift COLLAPSES them to one, because CanonicalValue.object is a Swift Dictionary and Swift String equality uses Unicode canonical equivalence; constructed as a dictionary literal the same pair TRAPS rather than collapsing.",
-    "why_unpinned": "Pinning either output would silently bless one implementation as correct, and a downstream verifier would then enforce that choice as a constant. Which behaviour is correct is a contract-semantics decision with the ARM-32 duplicate-key precedent as the steer, so it is the owner's to make, not this vector's.",
-    "consequence_for_consumers": "This vector set is a SUFFICIENT oracle for escaping, unicode, and structure. It is NOT a complete oracle for key identity. A verifier reproducing these vectors is not thereby guaranteed to agree on canonically-equivalent duplicate keys.",
-    "not_reachable_today": "Every current schema uses fixed ASCII keys, so no contract object can carry such a pair; the divergence was reached only by driving the encoder directly."
+    "resolution": "Both implementations now REFUSE such a pair, because object keys are restricted to the ASCII repertoire and neither key is ASCII. The refusal carries the typed code canonical.key-repertoire-unsupported.",
+    "why_the_repertoire_rather_than_detection": "Deciding canonical equivalence needs normalization tables. Swift has them implicitly (String equality IS canonical equivalence, which is what caused the original collapse); Go has none in its standard library and the gateway module is deliberately dependency-free. Restricting the repertoire makes equivalence IMPOSSIBLE by construction rather than detected, so both languages refuse exactly the same inputs with no tables and no dependency. Impossibility does not drift between Unicode versions; detection can.",
+    "also_resolved": "Byte-identical duplicate keys are refused too, with canonical.duplicate-key, on both the encode and strict-decode paths at every depth. Before ARM-48, Go emitted both bindings and Swift collapsed them.",
+    "scope": "Object KEYS only. String VALUES keep full Unicode and the canonical_json_unicode_v1 oracle is unchanged."
   },
   "cases": [
     {
@@ -22,10 +23,10 @@
       "note": "Keys are ordered by UTF-8 BYTE value, so uppercase sorts before lowercase."
     },
     {
-      "case": "keys_ascii_before_nonascii",
-      "expected_canonical": "{\"z\":\"1\",\"é\":\"2\"}",
-      "expected_canonical_hex": "7b227a223a2231222c22c3a9223a2232227d",
-      "note": "Byte ordering, not collation: 'z' (0x7a) sorts before a two-byte non-ASCII key."
+      "case": "keys_byte_order_not_collation",
+      "expected_canonical": "{\"Z\":\"1\",\"a\":\"2\"}",
+      "expected_canonical_hex": "7b225a223a2231222c2261223a2232227d",
+      "note": "Byte ordering, not collation: 'Z' (0x5a) sorts before 'a' (0x61). Many locale collations order these the other way, so this pins byte order specifically. This case previously used a non-ASCII key; ARM-48 restricted object keys to ASCII, so that formulation is now invalid and the property is pinned within ASCII."
     },
     {
       "case": "keys_empty_and_nonempty",

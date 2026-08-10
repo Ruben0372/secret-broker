@@ -1,0 +1,114 @@
+{
+  "name": "canonical_json_key_rejects_v1",
+  "description": "Object keys that every implementation must REFUSE, with the typed reason code each yields. ARM-48 resolves DISC-052. Two rules: byte-identical duplicate keys have no canonical meaning and are refused as canonical.duplicate-key; keys outside the ASCII repertoire are refused as canonical.key-repertoire-unsupported, which makes Unicode canonical equivalence impossible by construction rather than something two implementations must detect identically. Both rules apply on the encode path and the strict-decode path, at every depth. This constrains KEYS only; string VALUES keep full Unicode.",
+  "reason_codes": {
+    "duplicate_key": "canonical.duplicate-key",
+    "key_repertoire_unsupported": "canonical.key-repertoire-unsupported"
+  },
+  "cases": [
+    {
+      "case": "duplicate_ascii_key",
+      "keys": [
+        "k",
+        "k"
+      ],
+      "expected_reason_code": "canonical.duplicate-key",
+      "note": "Before ARM-48 Go emitted both bindings and Swift collapsed them."
+    },
+    {
+      "case": "disc052_canonically_equivalent_pair",
+      "keys": [
+        "é",
+        "é"
+      ],
+      "keys_utf8_hex": [
+        "c3a9",
+        "65cc81"
+      ],
+      "expected_reason_code": "canonical.key-repertoire-unsupported",
+      "note": "The original DISC-052 pair. Byte-distinct, renders alike. Refused because neither key is ASCII, so the equivalence question never arises."
+    },
+    {
+      "case": "non_ascii_key_precomposed",
+      "keys": [
+        "é"
+      ],
+      "keys_utf8_hex": [
+        "c3a9"
+      ],
+      "expected_reason_code": "canonical.key-repertoire-unsupported",
+      "note": "A single non-ASCII key is refused on its own."
+    },
+    {
+      "case": "non_ascii_key_astral",
+      "keys": [
+        "😀"
+      ],
+      "keys_utf8_hex": [
+        "f09f9880"
+      ],
+      "expected_reason_code": "canonical.key-repertoire-unsupported",
+      "note": "Astral plane key."
+    },
+    {
+      "case": "non_ascii_inside_ascii_key",
+      "keys": [
+        "aéb"
+      ],
+      "keys_utf8_hex": [
+        "61c3a962"
+      ],
+      "expected_reason_code": "canonical.key-repertoire-unsupported",
+      "note": "One non-ASCII byte anywhere in the key is enough."
+    }
+  ],
+  "accepted_for_contrast": [
+    {
+      "case": "distinct_ascii_keys",
+      "keys": [
+        "a",
+        "A",
+        "aa",
+        ""
+      ],
+      "note": "Distinct ASCII keys, including the empty key, still encode. A guard that refused everything would satisfy the reject cases while breaking every real object."
+    },
+    {
+      "case": "non_ascii_string_value",
+      "note": "String VALUES keep full Unicode; only keys are constrained."
+    }
+  ],
+  "escaped_key_documents": {
+    "why": "These cases carry whole DOCUMENTS rather than key strings, because the earlier cases could not express escaped spelling at all. A key written with a JSON escape decodes to the same key as its literal spelling, so identity must be taken from the DECODED value. A scanner that compared raw bytes instead would let an escaped key evade both rules: BSu0061 would not match a literal a for duplicate detection, and BSu00e9 would look like pure ASCII and pass the repertoire restriction. Both implementations must return the SAME typed code for these bytes.",
+    "cases": [
+      {
+        "case": "escaped_duplicate_key",
+        "document": "{\"\\u0061\":\"1\",\"a\":\"2\"}",
+        "document_hex": "{\"\\7530303631223a2231222c2261223a2232227d",
+        "expected_reason_code": "canonical.duplicate-key",
+        "note": "BSu0061 decodes to a, so this binds a twice."
+      },
+      {
+        "case": "escaped_non_ascii_key",
+        "document": "{\"\\u00e9\":\"1\"}",
+        "document_hex": "{\"\\7530306539223a2231227d",
+        "expected_reason_code": "canonical.key-repertoire-unsupported",
+        "note": "BSu00e9 decodes to a non-ASCII scalar. The raw bytes are all ASCII, which is exactly why raw-byte identity would miss it."
+      },
+      {
+        "case": "escaped_disc052_pair",
+        "document": "{\"\\u00e9\":\"1\",\"\\u00e9\":\"2\"}",
+        "document_hex": "{\"\\u00e9\":\"1\",\"\\7530306539223a2232227d",
+        "expected_reason_code": "canonical.key-repertoire-unsupported",
+        "note": "The DISC-052 pair in escaped spelling. The repertoire rule fires before duplicate detection, so the code is the repertoire one on both sides."
+      },
+      {
+        "case": "escaped_solidus_key_is_accepted",
+        "document": "{\"\\/\":\"1\"}",
+        "document_hex": "{\"\\2f223a2231227d",
+        "expected_reason_code": null,
+        "note": "Positive control: BS/ decodes to /, which is ASCII and unique, so it must be ACCEPTED. A scanner that refused every escaped key would satisfy the cases above while breaking legitimate input."
+      }
+    ]
+  }
+}
