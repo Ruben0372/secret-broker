@@ -177,6 +177,16 @@ public final class BrokerLedger: Sendable {
 
         let insertion = try store.createIfAbsent(candidate)
         if insertion.created {
+            // The store said it created this row. Check that the row it handed
+            // back is the row it was given. A store is a seam anyone can
+            // implement, so what it reports is evidence to check, not truth:
+            // a claim granted over a DIFFERENT record is not a claim on this
+            // operation at all.
+            guard insertion.row == candidate else {
+                return .corrupted(
+                    "store reported creating \(operationID.value) but returned a different row"
+                )
+            }
             return .reserved(LedgerReservation(row: insertion.row, storeIdentity: identity))
         }
 
@@ -292,6 +302,13 @@ public final class BrokerLedger: Sendable {
             // around an effect that may already have run.
             return try reclassifyWithoutRetrying(operationID: operationID, bytes: bytes)
         }
+        // Read back before dispatching. This is the highest-value check in the
+        // method: every crash-survivability claim rests on consumption being
+        // durable BEFORE the effect runs, and a store that reports a write it
+        // did not perform would make that claim false while everything still
+        // looked correct. Nothing is dispatched until the consumed state is
+        // actually there.
+        try requireStored(consumed, step: "consume")
 
         let reported: EffectOutcome
         do {
@@ -354,6 +371,8 @@ public final class BrokerLedger: Sendable {
         guard try store.compareAndSet(settled, expecting: .consumed) else {
             throw LedgerError.storeUnavailable("settlement lost the compare-and-set for \(consumed.operationID.value)")
         }
+        try requireStored(settled, step: "settle")
+
         let receipt = try LedgerReceipt(
             operationID: settled.operationID,
             digest: settled.digest,
@@ -362,7 +381,34 @@ public final class BrokerLedger: Sendable {
             sequence: settled.sequence
         )
         try store.appendReceipt(receipt)
+        // A receipt that is not the one that was appended is not evidence of
+        // this operation. Reading it back is what turns append-only from a
+        // promise into something observed.
+        guard let stored = try store.receipt(for: settled.operationID), stored == receipt else {
+            throw LedgerError.storeViolatedContract(
+                "receipt for \(settled.operationID.value) is absent or altered immediately after append"
+            )
+        }
         return receipt
+    }
+
+    /// Requires that the store actually holds `expected`.
+    ///
+    /// The seam is public API in an exported module, so any linker can supply a
+    /// store. At-most-once is only ever as strong as the atomicity that seam
+    /// promises, which means the promises have to be checked where checking is
+    /// possible rather than assumed everywhere.
+    private func requireStored(_ expected: LedgerRow, step: String) throws {
+        guard let stored = try store.row(for: expected.operationID) else {
+            throw LedgerError.storeViolatedContract(
+                "\(step) reported success for \(expected.operationID.value) but the row is absent"
+            )
+        }
+        guard stored == expected else {
+            throw LedgerError.storeViolatedContract(
+                "\(step) reported success for \(expected.operationID.value) but stored \(stored.state.rawValue) at sequence \(stored.sequence)"
+            )
+        }
     }
 
     private func reclassifyWithoutRetrying(

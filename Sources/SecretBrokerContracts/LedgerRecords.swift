@@ -23,6 +23,11 @@ public enum LedgerError: Error, Sendable, Hashable {
     /// A stored row or receipt does not match its own integrity digest.
     case integrityMismatch(String)
     case storeUnavailable(String)
+    /// The store reported success for a write whose effect is not there when
+    /// read back, or returned a record other than the one it was handed. The
+    /// ledger reads back rather than trusting, so this is a detection and not
+    /// a crash.
+    case storeViolatedContract(String)
 }
 
 // MARK: Identity
