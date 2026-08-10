@@ -17,6 +17,64 @@ import Testing
 /// The whole suite runs against a disposable namespace with an in-memory
 /// backing. Production access-group activation is held OFF, and that is
 /// asserted rather than assumed.
+
+/// Every rendering of a secret that a surface could plausibly expose.
+///
+/// The original scan matched one rendering, the UTF-8 text form, against six
+/// surfaces. A surface exposing the same bytes any other way was invisible to
+/// it: an array of decimal bytes, a hex dump, a base64 blob. The value is just
+/// as recoverable in all of those, so matching one spelling was a guard that
+/// looked thorough and covered a quarter of the ground.
+///
+/// A raw byte-sequence search subsumes the text form only, since the other
+/// renderings are different bytes on the surface. So this does both: the raw
+/// subsequence AND each textual rendering, explicitly named so coverage is
+/// legible rather than implied.
+struct LeakScanner {
+    let secret: [UInt8]
+
+    var text: String { String(decoding: secret, as: UTF8.self) }
+    var decimalSpaced: String { "[" + secret.map(String.init).joined(separator: ", ") + "]" }
+    var decimalTight: String { "[" + secret.map(String.init).joined(separator: ",") + "]" }
+    var hexLower: String { secret.map { String(format: "%02x", $0) }.joined() }
+    var hexUpper: String { secret.map { String(format: "%02X", $0) }.joined() }
+    var base64: String { Data(secret).base64EncodedString() }
+
+    /// Named renderings, so a failure says WHICH spelling was found.
+    var renderings: [(name: String, value: String)] {
+        [
+            ("text", text),
+            ("decimal-spaced", decimalSpaced),
+            ("decimal-tight", decimalTight),
+            ("hex-lower", hexLower),
+            ("hex-upper", hexUpper),
+            ("base64", base64),
+        ]
+    }
+
+    /// Findings for one surface, empty when clean.
+    func findings(in surface: String, named label: String) -> [String] {
+        var found: [String] = []
+        // Raw byte subsequence over the surface's own bytes.
+        if Self.contains(Array(surface.utf8), subsequence: secret) {
+            found.append("\(label): raw byte sequence")
+        }
+        for rendering in renderings where surface.contains(rendering.value) {
+            found.append("\(label): \(rendering.name)")
+        }
+        return found
+    }
+
+    static func contains(_ haystack: [UInt8], subsequence needle: [UInt8]) -> Bool {
+        guard !needle.isEmpty, haystack.count >= needle.count else { return false }
+        for start in 0...(haystack.count - needle.count)
+        where Array(haystack[start..<(start + needle.count)]) == needle {
+            return true
+        }
+        return false
+    }
+}
+
 @Suite("Keychain custody, leak and boundary proofs")
 struct KeychainCustodyTests {
     /// A value chosen to be unmistakable in any haystack. If this string turns
@@ -40,11 +98,12 @@ struct KeychainCustodyTests {
 
     // MARK: The acceptance property
 
-    @Test("No secret value reaches the environment, a log, a receipt, an error, or a result")
+    @Test("No secret value reaches any surface, in any rendering")
     func nothingLeaksTheSecretValue() throws {
         let namespace = Self.disposableNamespace()
         let (store, backing) = Self.makeStore(namespace: namespace)
         var recorder = CustodyLogRecorder()
+        let scanner = LeakScanner(secret: Array(Self.secretValue.utf8))
 
         let handle = try store.store(
             secret: Array(Self.secretValue.utf8),
@@ -52,54 +111,75 @@ struct KeychainCustodyTests {
             log: &recorder
         )
 
-        // 1. The returned handle.
-        let handleDescription = String(describing: handle)
-        #expect(!handleDescription.contains(Self.secretValue), "the handle's description carries the value")
-
-        // 2. Every log line the operation emitted.
-        for line in recorder.lines {
-            #expect(!line.contains(Self.secretValue), "a log line carries the value: \(line)")
-        }
-        #expect(!recorder.lines.isEmpty, "nothing was logged, so this scan proved nothing")
-
-        // 3. The receipt.
-        let receipt = store.receipt(for: handle)
-        #expect(!String(describing: receipt).contains(Self.secretValue), "the receipt carries the value")
-
-        // 4. Error strings, from a refusal on the same secret.
+        var refusalMessage = ""
         do {
             _ = try store.store(secret: Array(Self.secretValue.utf8), named: "", log: &recorder)
             Issue.record("an empty name was accepted")
         } catch let refusal as CustodyRefusal {
-            #expect(!refusal.message.contains(Self.secretValue), "a refusal message carries the value")
-            #expect(!String(describing: refusal).contains(Self.secretValue))
+            refusalMessage = refusal.message + String(describing: refusal)
         }
 
-        // 5. The process environment, which the adapter must never touch.
-        for (key, value) in ProcessInfo.processInfo.environment {
-            #expect(!value.contains(Self.secretValue), "environment variable \(key) carries the value")
-        }
-
-        // 6. Everything the backing exposes to a caller that is not custody.
-        #expect(
-            !backing.callerVisibleDescription.contains(Self.secretValue),
-            "the backing's caller-visible surface carries the value"
+        // The six surfaces, gathered so every one goes through the SAME scan.
+        // Scanning them by hand invited exactly the divergence that let one
+        // surface be checked for one spelling.
+        var surfaces: [(String, String)] = [
+            ("handle", String(describing: handle)),
+            ("logs", recorder.lines.joined(separator: "\n")),
+            ("receipt", String(describing: store.receipt(for: handle))),
+            ("refusal", refusalMessage),
+            ("backing-caller-visible", backing.callerVisibleDescription),
+        ]
+        surfaces.append(
+            ("environment", ProcessInfo.processInfo.environment.map { "\($0.key)=\($0.value)" }
+                .joined(separator: "\n"))
         )
+        #expect(surfaces.count == 6, "expected six surfaces, gathered \(surfaces.count)")
 
-        // POSITIVE CONTROL: the item really was stored, so the scans above ran
-        // against a populated store rather than an empty one.
-        #expect(store.exists(handle), "the secret was never stored, so nothing above was actually tested")
+        var findings: [String] = []
+        for (label, surface) in surfaces {
+            findings += scanner.findings(in: surface, named: label)
+        }
+        #expect(findings.isEmpty, "the secret is recoverable: \(findings)")
+
+        // POSITIVE CONTROLS: the scans ran against real, populated surfaces.
+        #expect(store.exists(handle), "the secret was never stored, so nothing above was tested")
         #expect(backing.rawItemCount == 1, "expected exactly one stored item")
+        #expect(!recorder.lines.isEmpty, "nothing was logged, so that surface proved nothing")
+        #expect(!refusalMessage.isEmpty, "no refusal was produced, so that surface proved nothing")
     }
 
-    /// The scan must be capable of finding the value. A leak hunt that cannot
-    /// detect a planted leak is decoration.
-    @Test("The leak scan detects a planted value, so it is not vacuous")
+    /// The control, widened. Planting into one surface proved that one surface
+    /// could be read; it said nothing about the other five, and nothing about
+    /// any rendering but the text form.
+    @Test("The scan detects every rendering planted into every surface")
     func leakScanIsNotVacuous() {
-        var recorder = CustodyLogRecorder()
-        recorder.record("this line deliberately contains \(Self.secretValue) as a control")
-        let found = recorder.lines.contains { $0.contains(Self.secretValue) }
-        #expect(found, "the recorder cannot see a value planted directly in it")
+        let scanner = LeakScanner(secret: Array(Self.secretValue.utf8))
+        let surfaceLabels = [
+            "handle", "logs", "receipt", "refusal", "backing-caller-visible", "environment",
+        ]
+        #expect(surfaceLabels.count == 6)
+
+        var undetected: [String] = []
+        var checks = 0
+        for label in surfaceLabels {
+            for rendering in scanner.renderings {
+                // A surface shaped like the real one, carrying the rendering.
+                let planted = "\(label)(namespace/FAKE_API_KEY: \(rendering.value))"
+                if scanner.findings(in: planted, named: label).isEmpty {
+                    undetected.append("\(label)/\(rendering.name)")
+                }
+                checks += 1
+            }
+        }
+        #expect(undetected.isEmpty, "the scan cannot see: \(undetected)")
+        #expect(checks == 36, "expected 6 surfaces times 6 renderings, ran \(checks)")
+
+        // And the scan does not fire on a surface that carries no secret, so it
+        // is a detector rather than an alarm that is always on.
+        #expect(
+            scanner.findings(in: "handle(namespace/FAKE_API_KEY#1)", named: "handle").isEmpty,
+            "the scan reported a finding on a clean surface"
+        )
     }
 
     // MARK: The seven boundary cases, each with a positive control
