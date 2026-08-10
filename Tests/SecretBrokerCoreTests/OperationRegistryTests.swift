@@ -165,6 +165,36 @@ struct OperationRegistryTests {
         #expect(registry.registeredNames == [try FakeOperations.operationName()])
     }
 
+    /// The input direction, which the production scan asserts but nothing was
+    /// driving. A registry that refused secret material on the way out and
+    /// accepted it on the way in would still be a raw-secret-fetch operation,
+    /// just one where the caller supplies the secret instead of receiving it.
+    @Test("An operation accepting raw secret material as input cannot be registered")
+    func secretCapableInputIsRefused() throws {
+        let descriptor = try FakeOperations.descriptor(
+            input: OperationSchema(fields: [
+                SchemaField(name: "material", kind: .rawSecretMaterial, isRequired: true)
+            ])
+        )
+        #expect(throws: RegistrationRefusal.self, "an operation accepting raw secret material was registered") {
+            _ = try OperationRegistry.build(
+                descriptors: [descriptor],
+                providers: [try FakeOperations.provider()]
+            )
+        }
+
+        // POSITIVE CONTROL: the handle form of the same input is accepted.
+        let handled = try FakeOperations.descriptor(
+            input: OperationSchema(fields: [
+                SchemaField(name: "material", kind: .credentialHandle, isRequired: true)
+            ])
+        )
+        _ = try OperationRegistry.build(
+            descriptors: [handled],
+            providers: [try FakeOperations.provider()]
+        )
+    }
+
     @Test("An operation whose output carries a forbidden field name cannot be registered")
     func forbiddenOutputFieldNameIsRefused() throws {
         for forbidden in OperationSchema.forbiddenOutputFieldNames.sorted() {
