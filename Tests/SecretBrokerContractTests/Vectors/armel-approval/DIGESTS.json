@@ -5,6 +5,9 @@
   "over": "raw file bytes as checked in, including the trailing newline",
   "digests": {
     "approval_request_v1": "9614e8d3aa30e9cf34865eff18de510561b1431185e7e3b4deb82df32a5d4977",
+    "canonical_json_escaping_v1": "88c5382f5431032d19b0d7a5c79ee7ec06cae2b855c7c81ef4b66bf6c932fa8f",
+    "canonical_json_structure_v1": "2517acb1ca5d4bf24aef261c845def31dc440ac77de35563a4b891a9eb30c15e",
+    "canonical_json_unicode_v1": "4ebadde304ccf8b70904105426d645a263d24f39469273ca268d7a66ea47bc13",
     "cross_domain_rejection_v1": "e0e52de60fd63cf1d27400675d2dbcbbd2cedc6679ca18d17b8e456c42c057a8",
     "enrollment_record_v1": "2ab977b0e2b7159fa02fa0c326eafd7a1a66d2de47df105016f80fc58cd59e52",
     "gateway_receipt_v1": "902f85601b7d046c4304877f1032dae2f15eb1ffc2c219ec5eed8dd31d6b3c8e",

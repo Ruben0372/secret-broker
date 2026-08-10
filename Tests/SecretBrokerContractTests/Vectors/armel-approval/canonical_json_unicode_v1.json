@@ -1,0 +1,62 @@
+{
+  "name": "canonical_json_unicode_v1",
+  "description": "Canonical JSON non-ASCII oracle. This vector pins the canonical JSON byte rule so an independent verifier can reproduce it as a BLACK BOX, without reading either encoder. Each case gives an input and the exact canonical output, pinned BOTH as text and as expected_canonical_hex (the hex of the UTF-8 output bytes). The hex is authoritative: for the very characters this vector exists to pin, a reader cannot tell from the text alone whether a byte sequence is an escape or a literal, and the hex removes that ambiguity without requiring the consumer to first interpret this file's own JSON escaping. Every expected value here was MEASURED from both the Swift and the Go implementations and confirmed byte-identical; none of it is assumed. Inputs are given as JSON strings, so a control character appears here as its own JSON escape and is decoded to the raw scalar before being handed to the encoder.",
+  "rule": "Non-ASCII scalars are emitted as raw UTF-8. The encoder never emits a \\u escape for a non-ASCII character and never normalises. Two strings that render identically but differ in bytes must encode differently.",
+  "lone_surrogates": {
+    "status": "NOT REPRESENTABLE, therefore deliberately NOT a vector case.",
+    "measured": "A lone surrogate cannot appear in this file as a character, because the file is UTF-8 and UTF-8 cannot encode one. Expressed instead as a \\ud83d escape, the two JSON readers DIVERGE, measured 2026-08-09: Swift's JSONDecoder REJECTS with 'Missing low code point in surrogate pair', while Go's encoding/json ACCEPTS and silently substitutes U+FFFD (ef bf bd).",
+    "why_no_case": "Any lone-surrogate case in this file would be testing U+FFFD on the Go side, not a lone surrogate, so it would only appear to test something. Recording the measurement instead of inventing the case.",
+    "why_it_is_not_a_hole": "The DISC-030 canonical round trip already closes this on both sides for different reasons: Swift rejects at parse, and on the Go side the substitution changes the bytes, so the re-encoded form no longer equals the received bytes and the round trip rejects it."
+  },
+  "cases": [
+    {
+      "case": "nonascii_2_byte_u00e9",
+      "input_utf8_hex": "c3a9",
+      "expected_canonical": "{\"k\":\"é\"}",
+      "expected_canonical_hex": "7b226b223a22c3a9227d",
+      "note": "U+00E9, two UTF-8 bytes. Non-ASCII is emitted as raw UTF-8, never as a \\u escape."
+    },
+    {
+      "case": "nonascii_3_byte_u20ac",
+      "input_utf8_hex": "e282ac",
+      "expected_canonical": "{\"k\":\"€\"}",
+      "expected_canonical_hex": "7b226b223a22e282ac227d",
+      "note": "U+20AC, three UTF-8 bytes."
+    },
+    {
+      "case": "astral_4_byte_u1f600",
+      "input_utf8_hex": "f09f9880",
+      "expected_canonical": "{\"k\":\"😀\"}",
+      "expected_canonical_hex": "7b226b223a22f09f9880227d",
+      "note": "U+1F600, four UTF-8 bytes, outside the BMP. In JSON source this is written as a surrogate PAIR; the encoder sees one scalar and emits four raw bytes."
+    },
+    {
+      "case": "combining_sequence_e_plus_u0301",
+      "input_utf8_hex": "65cc81",
+      "expected_canonical": "{\"k\":\"é\"}",
+      "expected_canonical_hex": "7b226b223a2265cc81227d",
+      "note": "e followed by U+0301. Three bytes, NOT normalised: the encoder emits what it was given."
+    },
+    {
+      "case": "precomposed_u00e9",
+      "input_utf8_hex": "c3a9",
+      "expected_canonical": "{\"k\":\"é\"}",
+      "expected_canonical_hex": "7b226b223a22c3a9227d",
+      "note": "U+00E9 precomposed. Two bytes. Compare with the combining sequence above: they render alike but are DIFFERENT byte sequences and the encoder must keep them different."
+    },
+    {
+      "case": "next_line_u0085",
+      "input_utf8_hex": "c285",
+      "expected_canonical": "{\"k\":\"\"}",
+      "expected_canonical_hex": "7b226b223a22c285227d",
+      "note": "U+0085 NEL. Not a C0 control, so emitted raw, even though some encoders treat it specially."
+    },
+    {
+      "case": "line_separator_u2028",
+      "input_utf8_hex": "e280a8",
+      "expected_canonical": "{\"k\":\" \"}",
+      "expected_canonical_hex": "7b226b223a22e280a8227d",
+      "note": "U+2028. Valid raw in JSON though not in JavaScript source; emitted raw."
+    }
+  ]
+}

@@ -11,6 +11,9 @@ struct VendoredVectorIntegrityTests {
     /// gained or lost a file fails rather than silently narrowing the corpus.
     static let expectedApprovalVectors = [
         "approval_request_v1",
+        "canonical_json_escaping_v1",
+        "canonical_json_structure_v1",
+        "canonical_json_unicode_v1",
         "cross_domain_rejection_v1",
         "enrollment_record_v1",
         "gateway_receipt_v1",
@@ -48,7 +51,7 @@ struct VendoredVectorIntegrityTests {
             verified += 1
         }
         // Non-vacuity: the loop must actually have run over every vector.
-        #expect(verified == 14, "verified \(verified) approval vectors, expected exactly 14")
+        #expect(verified == 17, "verified \(verified) approval vectors, expected exactly 17")
     }
 
     @Test("The digest listing names every vendored vector and nothing else")
@@ -118,7 +121,10 @@ struct VendoredVectorIntegrityTests {
             encoding: .utf8
         )
         #expect(approval.contains(ContractVectorFixtures.Provenance.approvalCommit))
-        #expect(approval.contains("ARM-47"), "the known escaping gap must stay named, not silently carried")
+        // ARM-47 closed the escaping oracle; the record of what it closed and
+        // what upstream still does not pin (lone surrogates) stays.
+        #expect(approval.contains("ARM-47"), "the escaping oracle record must stay")
+        #expect(approval.contains("lone surrogates"), "the unpinned surrogate behaviour must stay named")
         #expect(
             approval.contains("ARM-48"),
             "the canonically-equivalent-key residual must stay named, not silently carried"

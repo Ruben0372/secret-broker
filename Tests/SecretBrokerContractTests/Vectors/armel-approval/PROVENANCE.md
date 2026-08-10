@@ -7,7 +7,7 @@ here as independent corroboration of anything: a provenance search that finds a
 sentence in this directory has found the source repository's words, copied.
 
 - Source repository: `Ruben0372/armel-approval`
-- Source commit: `6f36fe66a427` (merge of PR 4, ARM-46 P1-001a owner-control approval contract)
+- Source commit: `68285bfd` (merge of PR 5, ARM-47 canonical JSON escaping vectors; supersedes `6f36fe66a427`)
 - Source path: `packages/vectors/vectors/`
 - Vendored by: ARM-25 / B1-002, secret-broker
 - Vendored at: 2026-08-09
@@ -55,12 +55,16 @@ reject-as-duplicate on both sides, extending ARM-32 F1, and lands as ARM-48.
 Named here so a consumer cannot read the duplicate-key rule as already covering
 canonical equivalence.
 
-## Known coverage gap, tracked as ARM-47
+## ARM-47 escaping oracle, now closed
 
-Across every vendored file carrying pinned canonical bytes, the only escape
-sequence appearing anywhere is the escaped double quote, and no canonical JSON
-string contains a non-ASCII character. Backslash, C0 control characters,
-solidus, non-ASCII, and surrogate handling are therefore unpinned by this
-corpus. ARM-47 extends the upstream vectors to pin those branches. Until it
-lands and this fixture is re-pinned, canonical-on-input in this repository is
-enforced over this corpus and is explicitly not claimed for those inputs.
+The earlier gap is closed. `canonical_json_escaping_v1`, `canonical_json_unicode_v1`
+and `canonical_json_structure_v1` pin every C0 control point, both boundaries,
+every character JSON gives special meaning, non-ASCII across BMP and astral, key
+ordering by UTF-8 byte value, whitespace, and integer form. Canonical-on-input is
+enforced against those branches here, and the ARM-47-pending marker is dropped
+for them.
+
+One thing upstream deliberately does NOT pin, and neither does this repository:
+lone surrogates. They are not representable in a UTF-8 vector file, and upstream
+measured that the two JSON readers diverge on the escaped form. Nothing here
+claims a behaviour for them.

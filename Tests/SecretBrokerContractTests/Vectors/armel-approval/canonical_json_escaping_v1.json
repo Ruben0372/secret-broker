@@ -1,0 +1,273 @@
+{
+  "name": "canonical_json_escaping_v1",
+  "description": "Canonical JSON escaping oracle. This vector pins the canonical JSON byte rule so an independent verifier can reproduce it as a BLACK BOX, without reading either encoder. Each case gives an input and the exact canonical output, pinned BOTH as text and as expected_canonical_hex (the hex of the UTF-8 output bytes). The hex is authoritative: for the very characters this vector exists to pin, a reader cannot tell from the text alone whether a byte sequence is an escape or a literal, and the hex removes that ambiguity without requiring the consumer to first interpret this file's own JSON escaping. Every expected value here was MEASURED from both the Swift and the Go implementations and confirmed byte-identical; none of it is assumed. Inputs are given as JSON strings, so a control character appears here as its own JSON escape and is decoded to the raw scalar before being handed to the encoder.",
+  "coverage_contract": "Every C0 code point U+0000 through U+001F appears exactly once, plus both boundaries (0x20 and 0x7f) and every character JSON gives a special meaning. A conformance suite must assert this coverage, so a missing code point fails rather than silently narrowing the oracle.",
+  "cases": [
+    {
+      "case": "c0_control_00",
+      "input_utf8_hex": "00",
+      "expected_canonical": "{\"k\":\"\\u0000\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303030227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_01",
+      "input_utf8_hex": "01",
+      "expected_canonical": "{\"k\":\"\\u0001\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303031227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_02",
+      "input_utf8_hex": "02",
+      "expected_canonical": "{\"k\":\"\\u0002\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303032227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_03",
+      "input_utf8_hex": "03",
+      "expected_canonical": "{\"k\":\"\\u0003\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303033227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_04",
+      "input_utf8_hex": "04",
+      "expected_canonical": "{\"k\":\"\\u0004\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303034227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_05",
+      "input_utf8_hex": "05",
+      "expected_canonical": "{\"k\":\"\\u0005\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303035227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_06",
+      "input_utf8_hex": "06",
+      "expected_canonical": "{\"k\":\"\\u0006\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303036227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_07",
+      "input_utf8_hex": "07",
+      "expected_canonical": "{\"k\":\"\\u0007\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303037227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_08",
+      "input_utf8_hex": "08",
+      "expected_canonical": "{\"k\":\"\\b\"}",
+      "expected_canonical_hex": "7b226b223a225c62227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_09",
+      "input_utf8_hex": "09",
+      "expected_canonical": "{\"k\":\"\\t\"}",
+      "expected_canonical_hex": "7b226b223a225c74227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0a",
+      "input_utf8_hex": "0a",
+      "expected_canonical": "{\"k\":\"\\n\"}",
+      "expected_canonical_hex": "7b226b223a225c6e227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0b",
+      "input_utf8_hex": "0b",
+      "expected_canonical": "{\"k\":\"\\u000b\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303062227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0c",
+      "input_utf8_hex": "0c",
+      "expected_canonical": "{\"k\":\"\\f\"}",
+      "expected_canonical_hex": "7b226b223a225c66227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0d",
+      "input_utf8_hex": "0d",
+      "expected_canonical": "{\"k\":\"\\r\"}",
+      "expected_canonical_hex": "7b226b223a225c72227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0e",
+      "input_utf8_hex": "0e",
+      "expected_canonical": "{\"k\":\"\\u000e\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303065227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_0f",
+      "input_utf8_hex": "0f",
+      "expected_canonical": "{\"k\":\"\\u000f\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303066227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_10",
+      "input_utf8_hex": "10",
+      "expected_canonical": "{\"k\":\"\\u0010\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303130227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_11",
+      "input_utf8_hex": "11",
+      "expected_canonical": "{\"k\":\"\\u0011\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303131227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_12",
+      "input_utf8_hex": "12",
+      "expected_canonical": "{\"k\":\"\\u0012\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303132227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_13",
+      "input_utf8_hex": "13",
+      "expected_canonical": "{\"k\":\"\\u0013\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303133227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_14",
+      "input_utf8_hex": "14",
+      "expected_canonical": "{\"k\":\"\\u0014\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303134227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_15",
+      "input_utf8_hex": "15",
+      "expected_canonical": "{\"k\":\"\\u0015\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303135227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_16",
+      "input_utf8_hex": "16",
+      "expected_canonical": "{\"k\":\"\\u0016\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303136227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_17",
+      "input_utf8_hex": "17",
+      "expected_canonical": "{\"k\":\"\\u0017\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303137227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_18",
+      "input_utf8_hex": "18",
+      "expected_canonical": "{\"k\":\"\\u0018\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303138227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_19",
+      "input_utf8_hex": "19",
+      "expected_canonical": "{\"k\":\"\\u0019\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303139227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1a",
+      "input_utf8_hex": "1a",
+      "expected_canonical": "{\"k\":\"\\u001a\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303161227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1b",
+      "input_utf8_hex": "1b",
+      "expected_canonical": "{\"k\":\"\\u001b\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303162227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1c",
+      "input_utf8_hex": "1c",
+      "expected_canonical": "{\"k\":\"\\u001c\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303163227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1d",
+      "input_utf8_hex": "1d",
+      "expected_canonical": "{\"k\":\"\\u001d\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303164227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1e",
+      "input_utf8_hex": "1e",
+      "expected_canonical": "{\"k\":\"\\u001e\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303165227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "c0_control_1f",
+      "input_utf8_hex": "1f",
+      "expected_canonical": "{\"k\":\"\\u001f\"}",
+      "expected_canonical_hex": "7b226b223a225c7530303166227d",
+      "note": "C0 control: must be escaped, never emitted raw. The short escapes are used where JSON defines one, otherwise the lowercase \\u00xx long form."
+    },
+    {
+      "case": "space_0x20",
+      "input_utf8_hex": "20",
+      "expected_canonical": "{\"k\":\" \"}",
+      "expected_canonical_hex": "7b226b223a2220227d",
+      "note": "0x20 is not a control and is emitted raw; this pins the lower boundary of the escaping branch."
+    },
+    {
+      "case": "exclamation_0x21",
+      "input_utf8_hex": "21",
+      "expected_canonical": "{\"k\":\"!\"}",
+      "expected_canonical_hex": "7b226b223a2221227d",
+      "note": "an ordinary printable ASCII character, emitted raw."
+    },
+    {
+      "case": "double_quote",
+      "input_utf8_hex": "22",
+      "expected_canonical": "{\"k\":\"\\\"\"}",
+      "expected_canonical_hex": "7b226b223a225c22227d",
+      "note": "the string delimiter, escaped."
+    },
+    {
+      "case": "solidus",
+      "input_utf8_hex": "2f",
+      "expected_canonical": "{\"k\":\"/\"}",
+      "expected_canonical_hex": "7b226b223a222f227d",
+      "note": "PINNED AS RAW. Forward slash is NOT escaped. Many JSON encoders emit backslash-solidus and both are valid JSON, so an independent implementation could reasonably guess either way. This case exists to remove that guess."
+    },
+    {
+      "case": "backslash",
+      "input_utf8_hex": "5c",
+      "expected_canonical": "{\"k\":\"\\\\\"}",
+      "expected_canonical_hex": "7b226b223a225c5c227d",
+      "note": "the escape character itself, escaped."
+    },
+    {
+      "case": "delete_0x7f",
+      "input_utf8_hex": "7f",
+      "expected_canonical": "{\"k\":\"\"}",
+      "expected_canonical_hex": "7b226b223a227f227d",
+      "note": "0x7f is NOT a C0 control and is emitted raw; this pins the upper boundary of the escaping branch."
+    }
+  ]
+}
