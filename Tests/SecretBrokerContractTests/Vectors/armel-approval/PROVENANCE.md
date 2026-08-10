@@ -46,6 +46,15 @@ change, so a vector cannot catch a misreading baked into both at once. It
 catches drift, cross-language asymmetry, and regression. Independent review of
 a vector is therefore review of the specification claim, not only of the data.
 
+## Known residual, tracked as ARM-48
+
+Duplicate map keys are rejected by byte equality on both sides. Two keys that
+differ in bytes but are canonically equivalent, for example under a Unicode
+normalisation, are not currently treated as duplicates. The owner decision is
+reject-as-duplicate on both sides, extending ARM-32 F1, and lands as ARM-48.
+Named here so a consumer cannot read the duplicate-key rule as already covering
+canonical equivalence.
+
 ## Known coverage gap, tracked as ARM-47
 
 Across every vendored file carrying pinned canonical bytes, the only escape

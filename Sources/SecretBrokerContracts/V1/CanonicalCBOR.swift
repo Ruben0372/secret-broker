@@ -8,6 +8,14 @@
 /// The decoder refuses a non-canonical spelling instead of normalising it.
 /// Normalising would mean two different byte strings both verify while the
 /// digest, and therefore the signature, covers only one of them.
+///
+/// KNOWN RESIDUAL, ARM-48-pending. Duplicate map keys are rejected by byte
+/// equality. Two keys that differ in bytes but are canonically equivalent, for
+/// example under a Unicode normalisation, are not currently treated as
+/// duplicates here. The owner decision is reject-as-duplicate on both sides,
+/// extending ARM-32 F1, and lands as ARM-48. Until it does, this is named
+/// rather than silently carried: a consumer must not read the duplicate-key
+/// rule as covering canonical equivalence.
 public enum CanonicalCBOR {
     static let maximumNesting = 32
 

@@ -119,6 +119,10 @@ struct VendoredVectorIntegrityTests {
         )
         #expect(approval.contains(ContractVectorFixtures.Provenance.approvalCommit))
         #expect(approval.contains("ARM-47"), "the known escaping gap must stay named, not silently carried")
+        #expect(
+            approval.contains("ARM-48"),
+            "the canonically-equivalent-key residual must stay named, not silently carried"
+        )
 
         let authority = try String(
             contentsOf: ContractVectorFixtures.authorityRoot.appendingPathComponent("PROVENANCE.md"),
