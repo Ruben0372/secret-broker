@@ -59,7 +59,20 @@ struct AdaptersBoundaryTests {
         #expect(BootstrapTestSupport.dependencyNames(of: tests).contains("SecretBrokerAdapters"))
     }
 
-    @Test("Adapters ship fakes only, all sources under Fakes")
+    /// Non-fake adapter sources that have been through security review, named
+    /// one by one. ARM-26 reviewed the Keychain custody store, which is the
+    /// "a real adapter needs security review" case the original fakes-only pin
+    /// anticipated rather than forbade forever.
+    ///
+    /// This is a narrowing, not a relaxation. A NEW non-fake adapter that
+    /// nobody has reviewed still fails, because it will not be on this list,
+    /// and the fakes still have to stay under Fakes/. What actually keeps
+    /// custody isolated is unchanged and asserted elsewhere: adapters is not a
+    /// daemon dependency, is not an exported product, and the daemon artifact
+    /// carries no Keychain symbols.
+    static let reviewedNonFakeSources: Set<String> = ["KeychainStore.swift"]
+
+    @Test("Adapters ship fakes only, apart from explicitly reviewed sources")
     func adaptersAreFakeOnly() {
         #expect(
             FileManager.default.fileExists(atPath: Self.fakesDirectory.path),
@@ -68,9 +81,15 @@ struct AdaptersBoundaryTests {
         let sources = BootstrapTestSupport.swiftFiles(under: Self.adaptersDirectory)
         #expect(!sources.isEmpty, "adapters target has no sources")
         for file in sources {
+            let underFakes = file.path.hasPrefix(Self.fakesDirectory.path)
+            let reviewed = Self.reviewedNonFakeSources.contains(file.lastPathComponent)
             #expect(
-                file.path.hasPrefix(Self.fakesDirectory.path),
-                "\(file.lastPathComponent) sits outside Fakes; a real adapter needs security review"
+                underFakes || reviewed,
+                "\(file.lastPathComponent) sits outside Fakes and is not a reviewed adapter; a real adapter needs security review"
+            )
+            #expect(
+                !(underFakes && reviewed),
+                "\(file.lastPathComponent) is listed as a reviewed non-fake source but lives under Fakes"
             )
         }
     }
