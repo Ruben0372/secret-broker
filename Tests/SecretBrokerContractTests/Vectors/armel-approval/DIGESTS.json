@@ -1,0 +1,22 @@
+{
+  "name": "DIGESTS",
+  "description": "Published SHA-256 digests of every other vector file in this directory, over the raw file bytes as checked in. These are the verify_only inputs for the armel-approval-v1 program registry family. DIGESTS.json is excluded from its own listing; the Go suite recomputes every entry and the Swift suite asserts the listing is complete with no missing and no extra entries.",
+  "algorithm": "sha256",
+  "over": "raw file bytes as checked in, including the trailing newline",
+  "digests": {
+    "approval_request_v1": "9614e8d3aa30e9cf34865eff18de510561b1431185e7e3b4deb82df32a5d4977",
+    "cross_domain_rejection_v1": "e0e52de60fd63cf1d27400675d2dbcbbd2cedc6679ca18d17b8e456c42c057a8",
+    "enrollment_record_v1": "2ab977b0e2b7159fa02fa0c326eafd7a1a66d2de47df105016f80fc58cd59e52",
+    "gateway_receipt_v1": "902f85601b7d046c4304877f1032dae2f15eb1ffc2c219ec5eed8dd31d6b3c8e",
+    "owner_control_continuity_v1": "6c170a65a62ba59c0cd2636dfb1cb24f49ca3033e536cac444ef8774c5780254",
+    "owner_control_cross_domain_v1": "ad28c93d38efd6a716a3e6429f2ff55e6d125afd54c4e7f34379a24d649f87da",
+    "owner_control_decision_v1": "b158465fc1c089f6ff59d82f64a6ce6041703a6c1f81ec65ba7937702512bc7a",
+    "owner_control_manifest_v1": "048351b9eb928ccba6bd1e607a608166174bdcecd3a6ee91c29b13654c3a2702",
+    "sas_derivation_v1": "a7d6794a78329e4fa1c56dae6a276aa441e9848856f5979b951fe6b868659785",
+    "signing_context_separation_v1": "be2fd1025761b96fbb6fae54902eacc6ed1b864eaa6ffcc1497cbb9d4bb37a0a",
+    "task_decision_v1": "5ea996aef74697fd4d33fda9c190e4f5e372512ea50e881ee27b17c327e6cad8",
+    "task_manifest_v1": "2b15b7b4cd905f5ed0b1267b263322aacd18eaac6346fcc118a0bc6687159630",
+    "timestamps_v1": "df02e2ccd9070e9c7da6ede4298d97e5c0defd28bb4cb2101aafd55bbe323a59",
+    "unknown_fields_v1": "d1d390b36e50abd487ad304222d0d579a813626d9156b26470f202a25b9b922d"
+  }
+}

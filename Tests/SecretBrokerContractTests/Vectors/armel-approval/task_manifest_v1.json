@@ -1,0 +1,21 @@
+{
+  "name": "task_manifest_v1",
+  "description": "Canonical task-approval manifest. The frozen action the owner is asked to approve. Synthetic values. canonical_json is the byte-exact canonical encoding and sha256_hex is its SHA-256; both are re-derived and asserted by the Swift and Go suites.",
+  "object": {
+    "schema": "armel.task.manifest",
+    "schema_version": 1,
+    "domain": "armel.task-approval",
+    "manifest_id": "amf-0000000000000001-synthetic",
+    "audience": "armel-gateway.dev.synthetic",
+    "issued_at": "2026-08-09T00:00:00Z",
+    "expires_at": "2026-08-09T00:03:00Z",
+    "nonce": "nonce-0000000000000001-synthetic",
+    "action": {
+      "action_id": "act-0000000000000001-synthetic",
+      "kind": "task.effect.request",
+      "summary": "Synthetic manifest \"v1\" for contract vectors"
+    }
+  },
+  "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1}",
+  "sha256_hex": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209"
+}

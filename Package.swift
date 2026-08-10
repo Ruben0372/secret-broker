@@ -37,6 +37,13 @@ let package = Package(
             dependencies: ["SecretBrokerContracts"]
         ),
         .testTarget(
+            name: "SecretBrokerContractTests",
+            dependencies: ["SecretBrokerContracts"],
+            // Vendored external vector corpora are read by path, not declared
+            // as resources, because no target in this package declares any.
+            exclude: ["Vectors"]
+        ),
+        .testTarget(
             name: "SecretBrokerDaemonTests",
             dependencies: [
                 "SecretBrokerContracts",

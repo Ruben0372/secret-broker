@@ -1,0 +1,16 @@
+{
+  "name": "sas_derivation_v1",
+  "description": "Short Authentication String derivation for out-of-band Signal verification. Derivation: take the canonical encoding of the preimage object, SHA-256 it, read the first four bytes big-endian as an unsigned 32-bit integer, reduce modulo 1000000, and format as six decimal digits with leading zeros. The SAS is a human comparison aid over public identifiers; it is not a secret, not a credential, and confers no authority. Provenance note: this derivation is defined here, it is not a pinned external standard.",
+  "security_limitation": "This SAS does NOT defend against an attacker who can choose one of the identifiers that feed the preimage. Six decimal digits is a 1000000-wide space, so an attacker free to vary device_public_id (or any other preimage input under their control) can search for a value whose SAS equals a target and find one quickly; an independent reviewer ground a collision against a published SAS in under seven seconds on ordinary hardware. The code therefore only detects accidental mismatch and a passive observer, not an active attacker who selects an identifier. Do not treat a matching SAS as proof of identity, and do not use it to gate an effect. Strengthening this (longer codes, a commitment step, or binding to values no party can choose after the fact) is an owner design decision tracked as DISC-029 against the SAS-consuming issues; it is deliberately not changed here.",
+  "preimage_object": {
+    "domain": "armel.task-approval",
+    "purpose": "signal.verification.sas",
+    "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+    "gateway_public_id": "gw-0000000000000001-synthetic",
+    "device_public_id": "dev-0000000000000001-synthetic"
+  },
+  "preimage_canonical_json": "{\"device_public_id\":\"dev-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"gateway_public_id\":\"gw-0000000000000001-synthetic\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"purpose\":\"signal.verification.sas\"}",
+  "preimage_sha256_hex": "6c05cb5ea360896ac915ae502bff13ba7bb0b0c954a3352a04b36c08aa707794",
+  "sas_digits": 6,
+  "sas": "319070"
+}

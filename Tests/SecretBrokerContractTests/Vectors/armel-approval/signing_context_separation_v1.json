@@ -1,0 +1,42 @@
+{
+  "name": "signing_context_separation_v1",
+  "description": "Proves the two domains are cryptographically distinct, not merely distinguishable by a field. The SAME canonical bytes under the two domain tags produce different signing preimages and different digests, so a signature can never transfer between domains. It also pins the reverse: an owner-control object's bytes under the task tag produce a digest that no owner-control verifier will ever compute, because the verifier derives its tag from the object type rather than reading it from the input. Audience binding is a field check that fails only if a validator remembers to perform it; the signing context fails closed even against a validator that forgot, because the covered bytes simply differ.",
+  "tags": {
+    "task_approval": "armel.sig.v1.task-approval",
+    "owner_control": "armel.sig.v1.owner-control"
+  },
+  "separator_byte": "0x00",
+  "cases": [
+    {
+      "case": "owner_control_manifest_under_its_own_tag",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}",
+      "tag": "armel.sig.v1.owner-control",
+      "signing_preimage_sha256_hex": "e9605bce8d10c41e4af39ac697abce307ba049bfad1378c14013fc5b62e4e6bc",
+      "is_the_correct_pairing": true
+    },
+    {
+      "case": "owner_control_manifest_under_the_task_tag",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}",
+      "tag": "armel.sig.v1.task-approval",
+      "signing_preimage_sha256_hex": "c10c083e4bf7a4d80eb4ece4caede51f77028ecb038013ac85249a3a591ef721",
+      "is_the_correct_pairing": false,
+      "reason": "same bytes, wrong tag: the digest differs from the correct pairing, so a signature made under the task context cannot verify as owner-control"
+    },
+    {
+      "case": "task_manifest_under_its_own_tag",
+      "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1}",
+      "tag": "armel.sig.v1.task-approval",
+      "signing_preimage_sha256_hex": "d5a83e43e4f9df128ddc3448000a4146285a0691cf0f8f83ce49a3ec6fe4e23e",
+      "is_the_correct_pairing": true
+    },
+    {
+      "case": "task_manifest_under_the_owner_control_tag",
+      "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1}",
+      "tag": "armel.sig.v1.owner-control",
+      "signing_preimage_sha256_hex": "84c83b49a7e69ae3a6f524869a7ffcd2b8fc0df8de6028efe6dc04b641adc00e",
+      "is_the_correct_pairing": false,
+      "reason": "the mirror direction: a task manifest lifted into the owner-control context produces a digest no task verifier will compute"
+    }
+  ],
+  "provenance": "LOCAL DEFINITION, not a pinned external standard. The tag strings, the 0x00 separator, the covered range (tag || 0x00 || canonical_bytes), and the one-tag-per-domain rule are all defined in this repository. The construction is a conventional domain-separation prefix and the reviewer verified its injectivity, but it has not been confirmed against an external specification or an architecture decision. Reviewing this vector means reviewing the specification claim, not only the data. Confirm-or-freeze is tracked as DISC-042 against ARM-14. If the tags, the separator, or the covered range change, every digest in this file and in the three owner-control object vectors moves, so downstream consumers must re-pin."
+}

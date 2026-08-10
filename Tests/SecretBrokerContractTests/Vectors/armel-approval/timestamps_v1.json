@@ -1,0 +1,36 @@
+{
+  "name": "timestamps_v1",
+  "description": "Cross implementation timestamp conformance vector. The canonical grammar is exactly YYYY-MM-DDTHH:MM:SSZ: 20 ASCII characters, zero padded, whole seconds, explicit Z suffix, no fractional part, no offset form. Every implementation must accept every literal in valid_timestamps and reject every literal in invalid_timestamps, with no exceptions and no silent normalization. Standard library date parsers disagree here (some accept nonexistent calendar days and hour 24 and silently shift the instant, others accept fractional seconds), so implementations must validate this grammar directly rather than delegating. Because the grammar is fixed width, zero padded, and always UTC, lexicographic byte order over two valid literals equals chronological order; implementations must use that for ordering instead of library date math.",
+  "valid_timestamps": [
+    { "value": "2026-08-09T00:00:00Z", "reason": "canonical midnight" },
+    { "value": "2026-08-09T00:03:00Z", "reason": "canonical expiry used by approval_request_v1" },
+    { "value": "2024-02-29T23:59:59Z", "reason": "2024 is a leap year, so February 29 exists" },
+    { "value": "2000-02-29T12:00:00Z", "reason": "2000 is divisible by 400, so it is a leap year" },
+    { "value": "2026-12-31T23:59:59Z", "reason": "last representable second of the year" },
+    { "value": "2026-01-01T00:00:00Z", "reason": "first second of the year" }
+  ],
+  "invalid_timestamps": [
+    { "value": "2026-08-09T00:03:00.500Z", "reason": "fractional seconds are not in the canonical grammar" },
+    { "value": "2026-08-09T24:00:00Z", "reason": "hour 24 does not exist and silently shifts the instant to the next day" },
+    { "value": "2026-09-31T00:00:00Z", "reason": "September has 30 days, so this calendar day does not exist" },
+    { "value": "2026-02-30T00:00:00Z", "reason": "February never has 30 days" },
+    { "value": "2027-02-29T00:00:00Z", "reason": "2027 is not a leap year" },
+    { "value": "2100-02-29T00:00:00Z", "reason": "2100 is divisible by 100 but not 400, so it is not a leap year" },
+    { "value": "2026-13-01T00:00:00Z", "reason": "month 13 does not exist" },
+    { "value": "2026-00-10T00:00:00Z", "reason": "month 0 does not exist" },
+    { "value": "2026-08-00T00:00:00Z", "reason": "day 0 does not exist" },
+    { "value": "2026-08-09T00:60:00Z", "reason": "minute 60 does not exist" },
+    { "value": "2026-08-09T00:03:60Z", "reason": "second 60 (leap second) is rejected for cross implementation determinism" },
+    { "value": "2026-08-09T02:00:00+02:00", "reason": "offset form, only the explicit Z suffix is canonical" },
+    { "value": "2026-08-09T00:03:00", "reason": "missing Z suffix" },
+    { "value": "2026-08-09 00:03:00Z", "reason": "space separator instead of T" },
+    { "value": "2026-08-09t00:03:00Z", "reason": "lowercase t separator" },
+    { "value": "2026-08-09T00:03:00z", "reason": "lowercase z suffix" },
+    { "value": "2026-8-09T00:03:00Z", "reason": "month is not zero padded to two digits" },
+    { "value": "26-08-09T00:03:00Z", "reason": "year is not four digits" },
+    { "value": "2026-08-09T00:03:00Z ", "reason": "trailing whitespace" },
+    { "value": " 2026-08-09T00:03:00Z", "reason": "leading whitespace" },
+    { "value": "2026-08-09T00:03:0aZ", "reason": "non digit in the seconds field" },
+    { "value": "", "reason": "empty string" }
+  ]
+}

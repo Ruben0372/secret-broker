@@ -1,0 +1,107 @@
+{
+  "name": "unknown_fields_v1",
+  "description": "Fixtures that every implementation must REJECT because they carry fields the schema does not define. canonical_json is the canonical encoding of the object including its unknown field, so the rejection is attributable to the unknown field rather than to a non-canonical encoding. Both Swift Codable and Go encoding/json ignore unknown keys by default, so both sides must opt into strict decoding. Silently ignoring an unknown field would let a sender attach meaning the verifier never sees, which is how a widening attack starts.",
+  "cases": [
+    {
+      "case": "task_manifest_with_unknown_top_level_field",
+      "expected_validator": "task_manifest",
+      "object": {
+        "schema": "armel.task.manifest",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:03:00Z",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "action": {
+          "action_id": "act-0000000000000001-synthetic",
+          "kind": "task.effect.request",
+          "summary": "Synthetic manifest \"v1\" for contract vectors"
+        },
+        "unexpected_field": "unexpected"
+      },
+      "reason": "an unknown top-level field must fail closed rather than being ignored",
+      "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1,\"unexpected_field\":\"unexpected\"}"
+    },
+    {
+      "case": "task_decision_with_unknown_top_level_field",
+      "expected_validator": "task_decision",
+      "object": {
+        "schema": "armel.task.decision",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "decision_id": "adc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "audience": "armel-gateway.dev.synthetic",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "key_role": "device-approval-signer",
+        "decision": "approve",
+        "decided_at": "2026-08-09T00:01:00Z",
+        "not_after": "2026-08-09T00:03:00Z",
+        "unexpected_field": "unexpected"
+      },
+      "reason": "an unknown top-level field must fail closed rather than being ignored",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"decided_at\":\"2026-08-09T00:01:00Z\",\"decision\":\"approve\",\"decision_id\":\"adc-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"key_role\":\"device-approval-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"not_after\":\"2026-08-09T00:03:00Z\",\"schema\":\"armel.task.decision\",\"schema_version\":1,\"unexpected_field\":\"unexpected\"}"
+    },
+    {
+      "case": "gateway_receipt_with_unknown_top_level_field",
+      "expected_validator": "gateway_receipt",
+      "object": {
+        "schema": "armel.gateway.receipt",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "receipt_id": "arc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "checkpoint_index": 1,
+        "key_role": "gateway-receipt-signer",
+        "recorded_at": "2026-08-09T00:01:05Z",
+        "unexpected_field": "unexpected"
+      },
+      "reason": "an unknown top-level field must fail closed rather than being ignored",
+      "canonical_json": "{\"checkpoint_index\":1,\"domain\":\"armel.task-approval\",\"key_role\":\"gateway-receipt-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"receipt_id\":\"arc-0000000000000001-synthetic\",\"recorded_at\":\"2026-08-09T00:01:05Z\",\"schema\":\"armel.gateway.receipt\",\"schema_version\":1,\"unexpected_field\":\"unexpected\"}"
+    },
+    {
+      "case": "enrollment_record_with_unknown_top_level_field",
+      "expected_validator": "enrollment_record",
+      "object": {
+        "schema": "armel.enrollment.record",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "enrollment_id": "aen-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "device_public_id": "dev-0000000000000001-synthetic",
+        "device_label": "synthetic approval device",
+        "key_role": "enrollment-attester",
+        "enrolled_at": "2026-08-08T12:00:00Z",
+        "unexpected_field": "unexpected"
+      },
+      "reason": "an unknown top-level field must fail closed rather than being ignored",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"device_label\":\"synthetic approval device\",\"device_public_id\":\"dev-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"enrolled_at\":\"2026-08-08T12:00:00Z\",\"enrollment_id\":\"aen-0000000000000001-synthetic\",\"key_role\":\"enrollment-attester\",\"schema\":\"armel.enrollment.record\",\"schema_version\":1,\"unexpected_field\":\"unexpected\"}"
+    },
+    {
+      "case": "task_manifest_with_unknown_nested_field",
+      "expected_validator": "task_manifest",
+      "object": {
+        "schema": "armel.task.manifest",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:03:00Z",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "action": {
+          "action_id": "act-0000000000000001-synthetic",
+          "kind": "task.effect.request",
+          "summary": "Synthetic manifest \"v1\" for contract vectors",
+          "unexpected_nested": "unexpected"
+        }
+      },
+      "reason": "an unknown nested field must fail closed too",
+      "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\",\"unexpected_nested\":\"unexpected\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1}"
+    }
+  ]
+}

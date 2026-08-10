@@ -1,0 +1,20 @@
+{
+  "name": "approval_request_v1",
+  "description": "Canonical approval request vector. All values are synthetic. canonical_json is the byte-exact canonical encoding (UTF-8, lexicographically sorted keys, no insignificant whitespace, minimal string escaping, RFC3339 UTC timestamps). sha256_hex is the SHA-256 of the canonical bytes. Implementations in every language must reproduce both.",
+  "request": {
+    "schema": "armel.approval-request",
+    "schema_version": 1,
+    "request_id": "areq-0000000000000001-synthetic",
+    "audience": "armel-gateway.dev.synthetic",
+    "issued_at": "2026-08-09T00:00:00Z",
+    "expires_at": "2026-08-09T00:03:00Z",
+    "nonce": "nonce-0000000000000001-synthetic",
+    "action": {
+      "action_id": "act-0000000000000001-synthetic",
+      "kind": "task.effect.request",
+      "summary": "Synthetic manifest \"v1\" for contract vectors"
+    }
+  },
+  "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"request_id\":\"areq-0000000000000001-synthetic\",\"schema\":\"armel.approval-request\",\"schema_version\":1}",
+  "sha256_hex": "422958c60e303622200a1153ab922da1117dd6b6aedc46d45926876a46bace2e"
+}

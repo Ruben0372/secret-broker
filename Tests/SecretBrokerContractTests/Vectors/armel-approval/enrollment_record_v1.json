@@ -1,0 +1,17 @@
+{
+  "name": "enrollment_record_v1",
+  "description": "Canonical enrollment record. Binds a synthetic device public identifier to an audience. Contains no key material, no attestation blob, and no biometric data; those arrive with the enrollment ceremony in a later reviewed issue.",
+  "object": {
+    "schema": "armel.enrollment.record",
+    "schema_version": 1,
+    "domain": "armel.task-approval",
+    "enrollment_id": "aen-0000000000000001-synthetic",
+    "audience": "armel-gateway.dev.synthetic",
+    "device_public_id": "dev-0000000000000001-synthetic",
+    "device_label": "synthetic approval device",
+    "key_role": "enrollment-attester",
+    "enrolled_at": "2026-08-08T12:00:00Z"
+  },
+  "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"device_label\":\"synthetic approval device\",\"device_public_id\":\"dev-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"enrolled_at\":\"2026-08-08T12:00:00Z\",\"enrollment_id\":\"aen-0000000000000001-synthetic\",\"key_role\":\"enrollment-attester\",\"schema\":\"armel.enrollment.record\",\"schema_version\":1}",
+  "sha256_hex": "c604991b1b6bfc504539b6a0214a85321af403d242fd9494e1f787a969378b22"
+}

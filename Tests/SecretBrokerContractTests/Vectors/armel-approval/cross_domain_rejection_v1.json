@@ -1,0 +1,266 @@
+{
+  "name": "cross_domain_rejection_v1",
+  "description": "Fixtures that every implementation must REJECT. Each case is a well-formed-looking object presented to the named task-approval validator. canonical_json is the canonical encoding of that object and is what the tests feed to the validator, so each rejection is attributable to the domain or role rule rather than to the canonical round trip. A case carrying raw_json instead is a byte-level fixture whose bytes cannot be expressed as a parsed object. Domain substitution and key-role substitution are the two ways a caller could try to make owner-control authority satisfy a task effect, or the reverse. ARM-46 replaced the former structural placeholder with a real armel.owner-control.manifest object. Not one rejection rule changed: they bind to the domain and role markers rather than to the object body, which is exactly what the placeholder seam was for. Cases formerly named ..._placeholder_as_... now present the real owner-control object to each task-approval validator.",
+  "cases": [
+    {
+      "case": "manifest_with_owner_control_domain",
+      "expected_validator": "task_manifest",
+      "object": {
+        "schema": "armel.task.manifest",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:03:00Z",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "action": {
+          "action_id": "act-0000000000000001-synthetic",
+          "kind": "task.effect.request",
+          "summary": "Synthetic manifest \"v1\" for contract vectors"
+        }
+      },
+      "reason": "a task manifest carrying the owner-control domain is a domain substitution attempt",
+      "canonical_json": "{\"action\":{\"action_id\":\"act-0000000000000001-synthetic\",\"kind\":\"task.effect.request\",\"summary\":\"Synthetic manifest \\\"v1\\\" for contract vectors\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"schema\":\"armel.task.manifest\",\"schema_version\":1}"
+    },
+    {
+      "case": "decision_with_owner_control_domain",
+      "expected_validator": "task_decision",
+      "object": {
+        "schema": "armel.task.decision",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "decision_id": "adc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "audience": "armel-gateway.dev.synthetic",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "key_role": "device-approval-signer",
+        "decision": "approve",
+        "decided_at": "2026-08-09T00:01:00Z",
+        "not_after": "2026-08-09T00:03:00Z"
+      },
+      "reason": "a task decision carrying the owner-control domain is a domain substitution attempt",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"decided_at\":\"2026-08-09T00:01:00Z\",\"decision\":\"approve\",\"decision_id\":\"adc-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"key_role\":\"device-approval-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"not_after\":\"2026-08-09T00:03:00Z\",\"schema\":\"armel.task.decision\",\"schema_version\":1}"
+    },
+    {
+      "case": "receipt_with_owner_control_domain",
+      "expected_validator": "gateway_receipt",
+      "object": {
+        "schema": "armel.gateway.receipt",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "receipt_id": "arc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "checkpoint_index": 1,
+        "key_role": "gateway-receipt-signer",
+        "recorded_at": "2026-08-09T00:01:05Z"
+      },
+      "reason": "a receipt carrying the owner-control domain is a domain substitution attempt",
+      "canonical_json": "{\"checkpoint_index\":1,\"domain\":\"armel.owner-control\",\"key_role\":\"gateway-receipt-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"receipt_id\":\"arc-0000000000000001-synthetic\",\"recorded_at\":\"2026-08-09T00:01:05Z\",\"schema\":\"armel.gateway.receipt\",\"schema_version\":1}"
+    },
+    {
+      "case": "enrollment_with_owner_control_domain",
+      "expected_validator": "enrollment_record",
+      "object": {
+        "schema": "armel.enrollment.record",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "enrollment_id": "aen-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "device_public_id": "dev-0000000000000001-synthetic",
+        "device_label": "synthetic approval device",
+        "key_role": "enrollment-attester",
+        "enrolled_at": "2026-08-08T12:00:00Z"
+      },
+      "reason": "an enrollment record carrying the owner-control domain is a domain substitution attempt",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"device_label\":\"synthetic approval device\",\"device_public_id\":\"dev-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"enrolled_at\":\"2026-08-08T12:00:00Z\",\"enrollment_id\":\"aen-0000000000000001-synthetic\",\"key_role\":\"enrollment-attester\",\"schema\":\"armel.enrollment.record\",\"schema_version\":1}"
+    },
+    {
+      "case": "decision_with_owner_control_key_role",
+      "expected_validator": "task_decision",
+      "object": {
+        "schema": "armel.task.decision",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "decision_id": "adc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "audience": "armel-gateway.dev.synthetic",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "key_role": "owner-control-signer",
+        "decision": "approve",
+        "decided_at": "2026-08-09T00:01:00Z",
+        "not_after": "2026-08-09T00:03:00Z"
+      },
+      "reason": "an owner-control signing role must never satisfy a task-approval decision",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"decided_at\":\"2026-08-09T00:01:00Z\",\"decision\":\"approve\",\"decision_id\":\"adc-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"key_role\":\"owner-control-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"not_after\":\"2026-08-09T00:03:00Z\",\"schema\":\"armel.task.decision\",\"schema_version\":1}"
+    },
+    {
+      "case": "decision_with_gateway_key_role",
+      "expected_validator": "task_decision",
+      "object": {
+        "schema": "armel.task.decision",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "decision_id": "adc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "audience": "armel-gateway.dev.synthetic",
+        "nonce": "nonce-0000000000000001-synthetic",
+        "key_role": "gateway-receipt-signer",
+        "decision": "approve",
+        "decided_at": "2026-08-09T00:01:00Z",
+        "not_after": "2026-08-09T00:03:00Z"
+      },
+      "reason": "key-role mismatch: only the device approval signer role may carry a decision",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"decided_at\":\"2026-08-09T00:01:00Z\",\"decision\":\"approve\",\"decision_id\":\"adc-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"key_role\":\"gateway-receipt-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"not_after\":\"2026-08-09T00:03:00Z\",\"schema\":\"armel.task.decision\",\"schema_version\":1}"
+    },
+    {
+      "case": "receipt_with_device_key_role",
+      "expected_validator": "gateway_receipt",
+      "object": {
+        "schema": "armel.gateway.receipt",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "receipt_id": "arc-0000000000000001-synthetic",
+        "manifest_id": "amf-0000000000000001-synthetic",
+        "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+        "checkpoint_index": 1,
+        "key_role": "device-approval-signer",
+        "recorded_at": "2026-08-09T00:01:05Z"
+      },
+      "reason": "key-role mismatch: only the gateway receipt signer role may carry a receipt",
+      "canonical_json": "{\"checkpoint_index\":1,\"domain\":\"armel.task-approval\",\"key_role\":\"device-approval-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"receipt_id\":\"arc-0000000000000001-synthetic\",\"recorded_at\":\"2026-08-09T00:01:05Z\",\"schema\":\"armel.gateway.receipt\",\"schema_version\":1}"
+    },
+    {
+      "case": "enrollment_with_device_key_role",
+      "expected_validator": "enrollment_record",
+      "object": {
+        "schema": "armel.enrollment.record",
+        "schema_version": 1,
+        "domain": "armel.task-approval",
+        "enrollment_id": "aen-0000000000000001-synthetic",
+        "audience": "armel-gateway.dev.synthetic",
+        "device_public_id": "dev-0000000000000001-synthetic",
+        "device_label": "synthetic approval device",
+        "key_role": "device-approval-signer",
+        "enrolled_at": "2026-08-08T12:00:00Z"
+      },
+      "reason": "key-role mismatch: only the enrollment attester role may carry an enrollment record",
+      "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"device_label\":\"synthetic approval device\",\"device_public_id\":\"dev-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"enrolled_at\":\"2026-08-08T12:00:00Z\",\"enrollment_id\":\"aen-0000000000000001-synthetic\",\"key_role\":\"device-approval-signer\",\"schema\":\"armel.enrollment.record\",\"schema_version\":1}"
+    },
+    {
+      "case": "real_owner_control_object_as_manifest",
+      "expected_validator": "task_manifest",
+      "object": {
+        "schema": "armel.owner-control.manifest",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "control_manifest_id": "ocm-0000000000000001-synthetic",
+        "audience": "armel-control.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:10:00Z",
+        "nonce": "ocn-0000000000000001-synthetic",
+        "control_action": {
+          "kind": "key.rotate",
+          "target": "device:dev-0000000000000001-synthetic",
+          "scope": "approval-signing-key"
+        }
+      },
+      "reason": "a real owner-control object must be rejected by every task-approval validator",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}"
+    },
+    {
+      "case": "real_owner_control_object_as_decision",
+      "expected_validator": "task_decision",
+      "object": {
+        "schema": "armel.owner-control.manifest",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "control_manifest_id": "ocm-0000000000000001-synthetic",
+        "audience": "armel-control.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:10:00Z",
+        "nonce": "ocn-0000000000000001-synthetic",
+        "control_action": {
+          "kind": "key.rotate",
+          "target": "device:dev-0000000000000001-synthetic",
+          "scope": "approval-signing-key"
+        }
+      },
+      "reason": "a real owner-control object must be rejected by every task-approval validator",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}"
+    },
+    {
+      "case": "real_owner_control_object_as_receipt",
+      "expected_validator": "gateway_receipt",
+      "object": {
+        "schema": "armel.owner-control.manifest",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "control_manifest_id": "ocm-0000000000000001-synthetic",
+        "audience": "armel-control.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:10:00Z",
+        "nonce": "ocn-0000000000000001-synthetic",
+        "control_action": {
+          "kind": "key.rotate",
+          "target": "device:dev-0000000000000001-synthetic",
+          "scope": "approval-signing-key"
+        }
+      },
+      "reason": "a real owner-control object must be rejected by every task-approval validator",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}"
+    },
+    {
+      "case": "real_owner_control_object_as_enrollment",
+      "expected_validator": "enrollment_record",
+      "object": {
+        "schema": "armel.owner-control.manifest",
+        "schema_version": 1,
+        "domain": "armel.owner-control",
+        "control_manifest_id": "ocm-0000000000000001-synthetic",
+        "audience": "armel-control.dev.synthetic",
+        "issued_at": "2026-08-09T00:00:00Z",
+        "expires_at": "2026-08-09T00:10:00Z",
+        "nonce": "ocn-0000000000000001-synthetic",
+        "control_action": {
+          "kind": "key.rotate",
+          "target": "device:dev-0000000000000001-synthetic",
+          "scope": "approval-signing-key"
+        }
+      },
+      "reason": "a real owner-control object must be rejected by every task-approval validator",
+      "canonical_json": "{\"audience\":\"armel-control.dev.synthetic\",\"control_action\":{\"kind\":\"key.rotate\",\"scope\":\"approval-signing-key\",\"target\":\"device:dev-0000000000000001-synthetic\"},\"control_manifest_id\":\"ocm-0000000000000001-synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:10:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"nonce\":\"ocn-0000000000000001-synthetic\",\"schema\":\"armel.owner-control.manifest\",\"schema_version\":1}"
+    },
+    {
+      "case": "duplicate_domain_owner_control_then_task_approval",
+      "expected_validator": "task_manifest",
+      "raw_json": "{\"action\":{\"action_id\":\"a\",\"kind\":\"k\",\"summary\":\"s\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.owner-control\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"n\",\"schema\":\"armel.task.manifest\",\"schema_version\":1,\"domain\":\"armel.task-approval\"}",
+      "reason": "duplicate domain key: Swift keeps the first (owner-control) and rejects, Go keeps the last (task-approval) and accepted before the canonical round trip was added. Must be rejected by both."
+    },
+    {
+      "case": "duplicate_domain_task_approval_then_owner_control",
+      "expected_validator": "task_manifest",
+      "raw_json": "{\"action\":{\"action_id\":\"a\",\"kind\":\"k\",\"summary\":\"s\"},\"audience\":\"armel-gateway.dev.synthetic\",\"domain\":\"armel.task-approval\",\"expires_at\":\"2026-08-09T00:03:00Z\",\"issued_at\":\"2026-08-09T00:00:00Z\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"n\",\"schema\":\"armel.task.manifest\",\"schema_version\":1,\"domain\":\"armel.owner-control\"}",
+      "reason": "the mirror ordering: Swift keeps the first (task-approval) and accepted before the canonical round trip was added, Go keeps the last (owner-control) and rejects. Must be rejected by both."
+    }
+  ],
+  "owner_control_object": {
+    "schema": "armel.owner-control.manifest",
+    "schema_version": 1,
+    "domain": "armel.owner-control",
+    "control_manifest_id": "ocm-0000000000000001-synthetic",
+    "audience": "armel-control.dev.synthetic",
+    "issued_at": "2026-08-09T00:00:00Z",
+    "expires_at": "2026-08-09T00:10:00Z",
+    "nonce": "ocn-0000000000000001-synthetic",
+    "control_action": {
+      "kind": "key.rotate",
+      "target": "device:dev-0000000000000001-synthetic",
+      "scope": "approval-signing-key"
+    }
+  }
+}

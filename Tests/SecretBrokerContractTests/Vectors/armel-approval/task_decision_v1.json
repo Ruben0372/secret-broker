@@ -1,0 +1,21 @@
+{
+  "name": "task_decision_v1",
+  "description": "Canonical task-approval decision, bound to task_manifest_v1. The binding fields (manifest_id, manifest_digest, audience, nonce) are what make the decision one-use and replay-resistant: presenting it against any other manifest must fail. A decision is evidence, never authority.",
+  "object": {
+    "schema": "armel.task.decision",
+    "schema_version": 1,
+    "domain": "armel.task-approval",
+    "decision_id": "adc-0000000000000001-synthetic",
+    "manifest_id": "amf-0000000000000001-synthetic",
+    "manifest_digest": "3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209",
+    "audience": "armel-gateway.dev.synthetic",
+    "nonce": "nonce-0000000000000001-synthetic",
+    "key_role": "device-approval-signer",
+    "decision": "approve",
+    "decided_at": "2026-08-09T00:01:00Z",
+    "not_after": "2026-08-09T00:03:00Z"
+  },
+  "canonical_json": "{\"audience\":\"armel-gateway.dev.synthetic\",\"decided_at\":\"2026-08-09T00:01:00Z\",\"decision\":\"approve\",\"decision_id\":\"adc-0000000000000001-synthetic\",\"domain\":\"armel.task-approval\",\"key_role\":\"device-approval-signer\",\"manifest_digest\":\"3681946bd1e7def59bdd1a94c6eddb64cb0905c92e132120f47ced3546e10209\",\"manifest_id\":\"amf-0000000000000001-synthetic\",\"nonce\":\"nonce-0000000000000001-synthetic\",\"not_after\":\"2026-08-09T00:03:00Z\",\"schema\":\"armel.task.decision\",\"schema_version\":1}",
+  "sha256_hex": "7950b16ce566c3c5a1ea11c7ee135dfc2332fad597bbedb871e0c4b6ac29557a",
+  "bound_to_vector": "task_manifest_v1"
+}
