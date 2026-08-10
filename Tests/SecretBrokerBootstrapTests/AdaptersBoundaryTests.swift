@@ -70,7 +70,13 @@ struct AdaptersBoundaryTests {
     /// custody isolated is unchanged and asserted elsewhere: adapters is not a
     /// daemon dependency, is not an exported product, and the daemon artifact
     /// carries no Keychain symbols.
-    static let reviewedNonFakeSources: Set<String> = ["KeychainStore.swift"]
+    /// ARM-27 adds the SQLite reservation ledger. Same reasoning as the entry
+    /// above and the same limits: it is named individually, an unreviewed
+    /// sibling still fails, and none of the controls that actually keep the
+    /// runtime isolated are touched by its presence. It reaches one file at a
+    /// caller-supplied path, no credential and no Keychain, which is why it can
+    /// sit in adapters at all.
+    static let reviewedNonFakeSources: Set<String> = ["KeychainStore.swift", "SQLiteLedger.swift"]
 
     @Test("Adapters ship fakes only, apart from explicitly reviewed sources")
     func adaptersAreFakeOnly() {
