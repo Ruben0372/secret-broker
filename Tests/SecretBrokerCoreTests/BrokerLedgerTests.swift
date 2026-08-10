@@ -300,6 +300,68 @@ struct BrokerLedgerTests {
         #expect(Set(replays).count == 1, "callers received \(Set(replays).count) distinct receipts for one operation")
     }
 
+    /// The test above serializes on the in-process gate, so it exercises the
+    /// convenience lock rather than the mechanism that actually makes the
+    /// guarantee. This one gives every caller its OWN ledger and its OWN store
+    /// connection over one database file, so nothing in this process
+    /// coordinates them: what stops the second send is the primary key on the
+    /// operation id, which is the claim being made. It is also the two-process
+    /// case, which is the case the gate cannot help with at all.
+    @Test("Concurrent ledgers over one database send exactly once")
+    func concurrentLedgersOverOneDatabaseSendOnce() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("ledger.sqlite").path
+        let effect = EffectRecorder()
+        let identifier = try Self.operationID()
+
+        // Create the file once up front so the race is over the reservation
+        // rather than over schema creation.
+        _ = try SQLiteLedgerStore(path: path)
+
+        let attempts = 32
+        let outcomes = OutcomeCollector()
+        let openFailures = EffectRecorder()
+        DispatchQueue.concurrentPerform(iterations: attempts) { _ in
+            // Failures are recorded rather than swallowed. Returning early on a
+            // failed open made a real adapter defect, a busy timeout set after
+            // the pragmas that take locks, surface as an unexplained count
+            // mismatch instead of naming itself.
+            do {
+                let ledger = BrokerLedger(store: try SQLiteLedgerStore(path: path))
+                let outcome = try ledger.execute(operationID: identifier, bytes: Self.payload) { _ in
+                    effect.send(identifier.value)
+                    return .succeeded
+                }
+                outcomes.record(outcome)
+            } catch {
+                openFailures.send(String(describing: error))
+                outcomes.record(nil)
+            }
+        }
+        #expect(
+            openFailures.sendCount == 0,
+            "\(openFailures.sendCount) callers could not open or drive the store: \(openFailures.sentOperations)"
+        )
+
+        #expect(
+            effect.sendCount == 1,
+            "the effect ran \(effect.sendCount) times across \(attempts) uncoordinated ledgers; the durable claim did not hold"
+        )
+        let performed = outcomes.all.filter { $0?.didPerformEffect == true }
+        #expect(performed.count == 1, "\(performed.count) uncoordinated callers were told they performed the effect")
+
+        // POSITIVE CONTROL: the operation really did complete, and every caller
+        // that received a receipt received the same one. Uncoordinated losers
+        // may legitimately see an in-flight operation as needing
+        // reconciliation, so a receipt is not required of all of them, but no
+        // caller may be handed a DIFFERENT receipt.
+        let receipts = outcomes.all.compactMap { $0?.receipt }
+        #expect(!receipts.isEmpty, "no caller received a receipt, so nothing completed")
+        #expect(Set(receipts).count == 1, "callers received \(Set(receipts).count) distinct receipts for one operation")
+        #expect(outcomes.all.count == attempts, "only \(outcomes.all.count) of \(attempts) callers reported an outcome")
+    }
+
     @Test("A single reserve on a fresh operation completes")
     func singleReserveCompletes() throws {
         let directory = try Self.disposableDirectory()

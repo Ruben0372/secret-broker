@@ -44,6 +44,14 @@ public final class SQLiteLedgerStore: LedgerStore, @unchecked Sendable {
         }
         self.handle = opened
 
+        // busy_timeout goes FIRST, before any statement that can take a lock.
+        // Setting the journal mode and creating the schema are both writes, so
+        // two openers racing at startup contend on them; with the timeout set
+        // afterwards they contend with no timeout at all and one of them fails
+        // the open outright. A concurrency test caught this intermittently, at
+        // roughly three runs in ten.
+        try execute("PRAGMA busy_timeout=5000;")
+
         // Durability settings are part of the guarantee, not tuning. WAL plus
         // FULL synchronous means a committed reservation is on disk before the
         // commit returns, which is what "persist consumption before dispatch"
@@ -52,7 +60,6 @@ public final class SQLiteLedgerStore: LedgerStore, @unchecked Sendable {
         try execute("PRAGMA journal_mode=WAL;")
         try execute("PRAGMA synchronous=FULL;")
         try execute("PRAGMA foreign_keys=ON;")
-        try execute("PRAGMA busy_timeout=5000;")
         try createSchema()
     }
 

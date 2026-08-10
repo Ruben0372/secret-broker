@@ -18,6 +18,37 @@ import SecretBrokerContracts
 /// NOT the safety mechanism. Removing it leaves at-most-once intact: concurrent
 /// callers in one process would simply see an in-flight operation as needing
 /// reconciliation instead of waiting for its receipt.
+///
+/// # Recovery
+///
+/// An operation lands in reconciliation when nothing in the ledger can say
+/// whether its effect happened. There are exactly two ways in:
+///
+/// - `settledUnknown`: the caller reported an ambiguous outcome, or the effect
+///   threw.
+/// - `consumed` with no settlement: the process died between persisting
+///   consumption and recording the result.
+///
+/// Both are terminal for automatic execution. The ledger will not retry them,
+/// will not reopen the idempotency key, and will not hand back a receipt. That
+/// is deliberate: every one of those would be a guess about whether a real
+/// effect already happened, and being wrong means sending twice.
+///
+/// To find them, read the store for rows whose state is `consumed` or
+/// `settledUnknown`. Both are visible in `LedgerStore.snapshot()`.
+///
+/// Resolving one is an operator action and needs evidence from OUTSIDE this
+/// ledger: ask the system that would have received the effect whether it holds
+/// the operation id and digest recorded on the row. Only that answer settles
+/// the question.
+///
+/// Recording the operator's decision back into the ledger is deliberately NOT
+/// implemented here. An API that writes a terminal state on request is an
+/// auto-retry with a person's name on it unless it also carries the evidence
+/// that justified the write, and designing that evidence is its own issue. If
+/// the operation must be attempted again, it is attempted as a NEW logical
+/// operation with a NEW operation id, which is the caller stating that intent
+/// rather than the ledger inferring it.
 
 /// A claim on an operation id. Minted only by a successful reservation, so a
 /// caller cannot settle work it never reserved.
