@@ -47,6 +47,18 @@ let package = Package(
             // as resources, because no target in this package declares any.
             exclude: ["Vectors"]
         ),
+        // Reaches the ledger state machine in core and its SQLite store in
+        // adapters. Depending on adapters from a test target is the same shape
+        // the bootstrap suite already uses: it puts the real store under test
+        // without making it linkable into the daemon.
+        .testTarget(
+            name: "SecretBrokerCoreTests",
+            dependencies: [
+                "SecretBrokerContracts",
+                "SecretBrokerCore",
+                "SecretBrokerAdapters",
+            ]
+        ),
         .testTarget(
             name: "SecretBrokerDaemonTests",
             dependencies: [
