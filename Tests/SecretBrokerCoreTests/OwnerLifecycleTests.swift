@@ -421,6 +421,112 @@ struct OwnerLifecycleTests {
         #expect(try machine.requestAttention(for: proposal, request: live).disposition == .raised)
     }
 
+    // MARK: The supersede-binding guard, covered where it uniquely owns the refusal
+
+    /// The epoch-monotonic check and the supersede-binding check both refuse a
+    /// bad establish, and every earlier test that passed a wrong
+    /// supersedingCurrent ALSO passed a wrong epoch, so `epoch == tip+1` refused
+    /// first and the supersede-binding guard was never the thing under test.
+    /// This drives a CORRECT epoch with a WRONG supersedingCurrent, the case the
+    /// supersede-binding guard alone owns.
+    @Test("A correct next epoch with the wrong supersedingCurrent is refused")
+    func supersedeBindingIsEnforced() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let machine = try Self.makeMachine(in: directory)
+        _ = try machine.establishEpoch(1, candidate: Self.candidate("c1"), supersedingCurrent: nil)
+
+        // epoch 2 is exactly tip+1, so the epoch check passes and only the
+        // supersede-binding guard can refuse. A wrong non-nil value:
+        #expect(throws: OwnerLifecycleRefusal.self, "a wrong supersedingCurrent was accepted with a correct epoch") {
+            _ = try machine.establishEpoch(2, candidate: Self.candidate("c2"), supersedingCurrent: 99)
+        }
+        // And nil, which is wrong once the tip is 1, is also uniquely this guard.
+        #expect(throws: OwnerLifecycleRefusal.self, "a nil supersedingCurrent was accepted when the tip was 1") {
+            _ = try machine.establishEpoch(2, candidate: Self.candidate("c2"), supersedingCurrent: nil)
+        }
+
+        // POSITIVE CONTROL: the correct supersedingCurrent at the same correct
+        // epoch advances, so the refusals are about the binding and not the epoch.
+        let advanced = try machine.establishEpoch(2, candidate: Self.candidate("c2"), supersedingCurrent: 1)
+        #expect(advanced.epoch == 2)
+    }
+
+    // MARK: The lease-holder binding, driven through the public settle entry
+
+    /// `settleDelivery` is private; it is reached through the public
+    /// `reportDeliverySucceeded` / `reportDeliveryFailed`. A NON-holder settling
+    /// another deliverer's live delivery must be refused. The compareAndSet
+    /// below the guard does not close this on its own: it only checks the state
+    /// is still reserved and rebuilds the row with the EXISTING holder's digest,
+    /// so identity is preserved either way and the holder-identity guard is the
+    /// only thing that refuses a non-holder.
+    @Test("Only the lease holder may settle its own delivery")
+    func onlyLeaseHolderSettles() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let machine = try Self.makeMachine(in: directory)
+        _ = try machine.establishEpoch(1, candidate: Self.candidate(), supersedingCurrent: nil)
+        let proposal = try machine.propose(Self.proposedChange(), asCandidate: Self.candidate())
+        let request = AttentionRequest(identifier: "att-settle", reason: .rotateBrokerCredential, template: .credentialRotation, expiresAt: 9_000)
+        _ = try machine.requestAttention(for: proposal, request: request)
+        _ = try machine.claim(requestID: request.identifier, deliverer: "deliverer-a", leaseSeconds: 100)
+
+        #expect(throws: OwnerLifecycleRefusal.self, "a non-holder settled another deliverer's delivery as succeeded") {
+            try machine.reportDeliverySucceeded(requestID: request.identifier, deliverer: "deliverer-b")
+        }
+        #expect(throws: OwnerLifecycleRefusal.self, "a non-holder settled another deliverer's delivery as failed") {
+            try machine.reportDeliveryFailed(requestID: request.identifier, deliverer: "deliverer-b")
+        }
+
+        // POSITIVE CONTROL: the actual holder settles fine, so the refusals are
+        // about the holder identity and not a settle path that never works.
+        try machine.reportDeliverySucceeded(requestID: request.identifier, deliverer: "deliverer-a")
+    }
+
+    // MARK: The escalation fail-safe, absence of a decision is never approval
+
+    /// The fail-safe direction: no owner decision must never read as approval.
+    /// Nothing recorded a decision, so the proposal is not approved and stays
+    /// not approved through raising attention and through an expired request.
+    /// An expired attention request is not a decision, and silence is not
+    /// consent.
+    @Test("A proposal with no owner decision is never approved, through attention and expiry")
+    func absenceOfDecisionIsNeverApproval() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clock = FakeClock(1_000)
+        let machine = try Self.makeMachine(in: directory, now: { clock.now })
+        _ = try machine.establishEpoch(1, candidate: Self.candidate(), supersedingCurrent: nil)
+        let proposal = try machine.propose(Self.proposedChange(), asCandidate: Self.candidate())
+
+        #expect(!proposal.isOwnerApproved, "a fresh proposal is approved with no decision recorded")
+        #expect(try machine.currentProposal(proposal.identifier)?.isOwnerApproved == false)
+
+        let live = AttentionRequest(identifier: "att-fs-live", reason: .rotateBrokerCredential, template: .credentialRotation, expiresAt: 2_000)
+        #expect(try machine.requestAttention(for: proposal, request: live).disposition == .raised)
+        #expect(
+            try machine.currentProposal(proposal.identifier)?.isOwnerApproved == false,
+            "raising attention promoted a proposal with no owner decision to approved"
+        )
+
+        clock.set(3_000)
+        let stale = AttentionRequest(identifier: "att-fs-stale", reason: .rotateBrokerCredential, template: .credentialRotation, expiresAt: 2_500)
+        #expect(try machine.requestAttention(for: proposal, request: stale).disposition == .refused)
+        #expect(
+            try machine.currentProposal(proposal.identifier)?.isOwnerApproved == false,
+            "an expired attention request was taken as approval"
+        )
+
+        // POSITIVE CONTROL: a genuine owner decision DOES flip it, so "never
+        // approved" above is the absence of a decision and not a proposal that
+        // can never be approved.
+        let owner = OwnerAuthority(ownerSecret: "arm31-fake-owner-secret")
+        let approved = try machine.recordOwnerDecision(owner.approve(proposal), for: proposal)
+        #expect(approved.isOwnerApproved)
+        #expect(try machine.currentProposal(proposal.identifier)?.isOwnerApproved == true)
+    }
+
     // MARK: The mutation adapter stays fake
 
     @Test("Cadence mutation is a stop gate and every real path refuses")
