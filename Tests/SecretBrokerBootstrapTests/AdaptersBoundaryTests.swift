@@ -76,7 +76,14 @@ struct AdaptersBoundaryTests {
     /// runtime isolated are touched by its presence. It reaches one file at a
     /// caller-supplied path, no credential and no Keychain, which is why it can
     /// sit in adapters at all.
-    static let reviewedNonFakeSources: Set<String> = ["KeychainStore.swift", "SQLiteLedger.swift"]
+    /// ARM-29 adds the fake Signal ingress. Three files, named individually
+    /// rather than admitting a whole directory, because a directory-shaped
+    /// exemption is how the next unreviewed adapter arrives. They reach no
+    /// network and no account: real device linkage is disabled and asserted.
+    static let reviewedNonFakeSources: Set<String> = [
+        "KeychainStore.swift", "SQLiteLedger.swift",
+        "SignalMessage.swift", "SignalReceipt.swift", "SignalInbox.swift",
+    ]
 
     @Test("Adapters ship fakes only, apart from explicitly reviewed sources")
     func adaptersAreFakeOnly() {
