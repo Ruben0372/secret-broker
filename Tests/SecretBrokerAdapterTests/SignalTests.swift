@@ -379,6 +379,37 @@ struct SignalTests {
         #expect(nonsense.disposition == .refused)
     }
 
+    /// The other edge of the permissive path. A fail-safe that triggers on
+    /// anything containing the letters is not fail-safe, it is broken: it would
+    /// halt on a status update mentioning that something stopped, and the fix
+    /// people reach for is to stop using the stop word.
+    @Test("A word merely containing the stop token does not stop")
+    func stopMatchesTokensNotSubstrings() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let inbox = try Self.makeInbox(in: directory)
+
+        let notStops = [
+            "ARMEL EVIDENCE stopped",
+            "ARMEL EVIDENCE unstoppable",
+            "ARMEL EVIDENCE stopgap",
+            "ARMEL EVIDENCE nonstop",
+        ]
+        for (index, body) in notStops.enumerated() {
+            let result = try inbox.receive(Self.envelope(id: "substr-\(index)", body: body))
+            #expect(
+                result.disposition != .stop,
+                "\(body.debugDescription) triggered a stop; the match is on substrings, not tokens"
+            )
+        }
+
+        // POSITIVE CONTROL: the token on its own, in the same lowercase form,
+        // does stop. So the refusals above are about word boundaries and not
+        // about a matcher that stopped working.
+        let real = try inbox.receive(Self.envelope(id: "substr-real", body: "armel stop"))
+        #expect(real.disposition == .stop)
+    }
+
     @Test("A STOP is not evidence, and carries no authority")
     func stopIsNotEvidence() throws {
         let directory = try Self.disposableDirectory()
