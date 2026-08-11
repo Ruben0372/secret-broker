@@ -199,6 +199,13 @@ public final class OwnerLifecycleMachine: @unchecked Sendable {
     /// this method cannot manufacture one, and the machine has no path to an
     /// `OwnerAuthority` that could. The approval is bound to the proposal digest,
     /// so an approval issued for one proposal cannot be recorded against another.
+    ///
+    /// What this does NOT verify, stated so the guarantee is not overread: it
+    /// checks the proposal digest but not `approval.ownerBindingHex`, because in
+    /// Wave 1 there is no registered owner to check it against. See the Wave 1
+    /// limit on `OwnerApproval`: an accepted approval means one was minted
+    /// through an authority, not that a verified owner acted. Owner-binding
+    /// verification arrives with owner identity in a later wave, not here.
     public func recordOwnerDecision(_ approval: OwnerApproval, for proposal: Proposal) throws -> Proposal {
         lock.lock(); defer { lock.unlock() }
         guard approval.proposalDigest == proposal.digest else {

@@ -171,13 +171,30 @@ public struct AttentionClaim: Sendable, Hashable {
 
 // MARK: The owner authority
 
-/// Evidence that the OWNER approved a specific proposal.
+/// Evidence that a proposal passed through owner approval. Read the Wave 1
+/// limit below before reading that as "the owner acted": in Wave 1 it means
+/// someone called `approve` through an authority, not that a verified owner did.
 ///
-/// Unforgeable. The initializer is `fileprivate`, so nothing outside this file
-/// can construct one, and inside this file the only caller is
-/// `OwnerAuthority.approve`. The state machine, in another file, has no way to
+/// What is structurally true: an `OwnerApproval` cannot be CONSTRUCTED except
+/// through `OwnerAuthority.approve`. The initializer is `fileprivate`, so
+/// nothing outside this file can build one, and the only caller inside this
+/// file is `approve`. The state machine lives in another file and has no way to
 /// make an `OwnerApproval`, which is what makes self-approval unsayable rather
-/// than merely refused.
+/// than merely refused. That property does hold, and it is the acceptance.
+///
+/// WAVE 1 LIMIT, stated because "unforgeable" would otherwise claim more than
+/// the code supports. There is NO registered-owner concept in Core yet.
+/// `OwnerAuthority.init(ownerSecret:)` is public and accepts ANY string, and
+/// `recordOwnerDecision` verifies the proposal digest but does NOT verify
+/// `ownerBindingHex` against any registered owner, because there is no owner
+/// identity to verify against. So `OwnerAuthority(ownerSecret: "anything")
+/// .approve(proposal)` yields an accepted approval, and in Wave 1 the test
+/// stands in for the owner. `ownerBindingHex` is carried now so that a later
+/// wave, which introduces owner identity, can bind it to a registered owner;
+/// adding an owner check here first would be an approximate boundary with no
+/// real owner behind it, which is the mistake ARM-30 refused. An `OwnerApproval`
+/// therefore proves that approval was minted through an authority, not that the
+/// owner is who a reader might assume.
 public struct OwnerApproval: Sendable, Hashable, CustomStringConvertible {
     public let proposalDigest: String
     public let ownerBindingHex: String
@@ -192,10 +209,17 @@ public struct OwnerApproval: Sendable, Hashable, CustomStringConvertible {
     }
 }
 
-/// The owner. The state machine does not hold one, is given none, and has no
-/// method that returns one. In production an authority originates at the owner
-/// boundary; in the fake the test constructs one to stand in for the owner,
-/// exactly as ARM-30 modeled owner grants as originating outside the broker.
+/// Stands in for the owner. The state machine does not hold one, is given none,
+/// and has no method that returns one. In production an authority originates at
+/// the owner boundary; in the fake the test constructs one to stand in for the
+/// owner, exactly as ARM-30 modeled owner grants as originating outside the
+/// broker.
+///
+/// Wave 1: `init(ownerSecret:)` accepts any string and nothing verifies it,
+/// because there is no registered owner yet. The secret is folded into
+/// `ownerBindingHex` so a later wave can bind an approval to a real owner
+/// identity; today it binds to whatever secret was passed. See the Wave 1 limit
+/// on `OwnerApproval`.
 public struct OwnerAuthority: Sendable {
     private let ownerBindingHex: String
 
