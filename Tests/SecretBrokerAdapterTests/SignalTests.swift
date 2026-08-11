@@ -264,7 +264,24 @@ struct SignalTests {
                 result.disposition == .refused,
                 "a folded variant was accepted: \(body.debugDescription)"
             )
+            // Refused AS non-ASCII, not merely refused. A probe found this
+            // gap: the token checks happen to reject every body here anyway,
+            // so asserting only "refused" left the printable-ASCII guard
+            // untestable, and it could have been deleted with the suite still
+            // green. The reason is also the operational difference, since an
+            // operator reading grammarNotExact for a zero-width smuggle learns
+            // that something was malformed, and reading bodyNotPlainAscii
+            // learns that something was disguised.
+            #expect(
+                result.refusal == .bodyNotPlainAscii,
+                "\(body.debugDescription) was refused as \(result.refusal?.rawValue ?? "none"); a disguised body should be named as one"
+            )
         }
+
+        // POSITIVE CONTROL: the refusal reason really does vary, so asserting
+        // it above is a check rather than a constant.
+        let malformed = try inbox.receive(Self.envelope(id: "smuggle-ascii", body: "ARMEL EVIDENCE"))
+        #expect(malformed.refusal == .grammarNotExact)
     }
 
     // MARK: Attachments
