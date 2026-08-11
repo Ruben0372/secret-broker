@@ -49,7 +49,16 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
     private var liveMaterial = 0
     private var allocatedMaterial = 0
     private var log: [String] = []
-    private var counter: UInt64 = 0
+
+    /// Identifiers must be unique across PROCESSES, not merely within one
+    /// broker. A per-instance counter meant a restarted broker reissued family
+    /// ids the previous one had already used, so a brand new grant collided
+    /// with a spent refresh token in the durable ledger and was refused as
+    /// superseded. The positive control added to the restart test caught this
+    /// within a minute of being written, which is the argument for writing it.
+    private static func freshIdentifier() -> String {
+        UUID().uuidString
+    }
 
     public init(refreshLedger: any LedgerStore) {
         self.refreshLedger = refreshLedger
@@ -80,9 +89,8 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         codeChallenge: String
     ) throws -> CadenceAuthorization {
         lock.lock(); defer { lock.unlock() }
-        counter += 1
         let authorization = CadenceAuthorization(
-            authorizationID: "auth-\(counter)",
+            authorizationID: "auth-\(Self.freshIdentifier())",
             audience: audience,
             route: route,
             codeChallenge: codeChallenge
@@ -120,8 +128,7 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         }
 
         redeemedAuthorizations.insert(authorization.authorizationID)
-        counter += 1
-        let familyID = "family-\(counter)"
+        let familyID = "family-\(Self.freshIdentifier())"
         mintAndZeroizeMaterial(label: "exchange-\(familyID)-1")
         log.append("cadence: exchanged \(authorization.authorizationID) into \(familyID) generation 1")
         return CadenceGrant(
@@ -182,10 +189,9 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
             throw CadenceOAuthRefusal.audienceMismatch
         }
         mintAndZeroizeMaterial(label: "access-\(grant.familyID)-\(grant.generation)")
-        counter += 1
         log.append("cadence: minted access token for \(grant.familyID)#\(grant.generation)")
         return CadenceAccessTokenHandle(
-            tokenID: "token-\(counter)",
+            tokenID: "token-\(Self.freshIdentifier())",
             familyID: grant.familyID,
             generation: grant.generation,
             audience: audience
