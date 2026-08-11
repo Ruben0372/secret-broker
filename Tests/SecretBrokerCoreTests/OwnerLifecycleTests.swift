@@ -44,6 +44,27 @@ final class FakeClock: @unchecked Sendable {
     }
 }
 
+/// Collects concurrent boolean outcomes.
+final class OutcomeBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var outcomes: [Bool] = []
+
+    func record(_ value: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        outcomes.append(value)
+    }
+
+    var trueCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return outcomes.filter { $0 }.count
+    }
+
+    var total: Int {
+        lock.lock(); defer { lock.unlock() }
+        return outcomes.count
+    }
+}
+
 @Suite("Owner lifecycle, proposal only and never self-approving")
 struct OwnerLifecycleTests {
     static func disposableDirectory(_ label: String = #function) throws -> URL {
@@ -199,6 +220,41 @@ struct OwnerLifecycleTests {
         // establish, which is the ARM-30 trap.
         let advanced = try restarted.establishEpoch(3, candidate: Self.candidate("cand-3"), supersedingCurrent: 2)
         #expect(advanced.epoch == 3)
+    }
+
+    @Test("Concurrent establishers of one epoch: exactly one wins")
+    func concurrentEpochEstablishmentPicksOneWinner() throws {
+        let directory = try Self.disposableDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("owner.sqlite").path
+        // Create the file up front so the race is over the epoch claim, not
+        // over schema creation.
+        _ = try SQLiteLedgerStore(path: path)
+
+        // Every establisher gets its OWN machine over the SAME ledger file, so
+        // nothing in this process coordinates them: the per-machine lock does
+        // not serialize across instances. What decides the single winner is the
+        // durable createIfAbsent primary key, which the sequential tests cannot
+        // exercise because they never race. This is the test that makes the
+        // epoch at-most-once claim load-bearing rather than redundant with the
+        // monotonicity read-check.
+        let attempts = 24
+        let winners = OutcomeBox()
+        DispatchQueue.concurrentPerform(iterations: attempts) { index in
+            guard let ledger = try? SQLiteLedgerStore(path: path) else { return }
+            let machine = OwnerLifecycleMachine(attentionLedger: ledger, now: { 1_000 })
+            do {
+                _ = try machine.establishEpoch(1, candidate: Self.candidate("cand-\(index)"), supersedingCurrent: nil)
+                winners.record(true)
+            } catch {
+                winners.record(false)
+            }
+        }
+        #expect(
+            winners.trueCount == 1,
+            "\(winners.trueCount) establishers claimed epoch 1 concurrently; the durable at-most-once claim did not hold"
+        )
+        #expect(winners.total == attempts, "only \(winners.total) of \(attempts) establishers reported")
     }
 
     @Test("Candidate possession: only the epoch's candidate holds it")
