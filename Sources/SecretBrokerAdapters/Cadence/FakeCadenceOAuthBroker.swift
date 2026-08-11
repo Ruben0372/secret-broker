@@ -45,9 +45,6 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
 
     private var authorizations: [String: CadenceAuthorization] = [:]
     private var redeemedAuthorizations: Set<String> = []
-    private var currentGeneration: [String: UInt64] = [:]
-    private var familyAudience: [String: CadenceAudience] = [:]
-    private var revokedFamilies: Set<String> = []
     private var probeDigests: [String] = []
     private var liveMaterial = 0
     private var allocatedMaterial = 0
@@ -125,8 +122,6 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         redeemedAuthorizations.insert(authorization.authorizationID)
         counter += 1
         let familyID = "family-\(counter)"
-        currentGeneration[familyID] = 1
-        familyAudience[familyID] = audience
         mintAndZeroizeMaterial(label: "exchange-\(familyID)-1")
         log.append("cadence: exchanged \(authorization.authorizationID) into \(familyID) generation 1")
         return CadenceGrant(
@@ -139,15 +134,14 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
 
     public func refresh(_ grant: CadenceGrant) throws -> CadenceGrant {
         lock.lock(); defer { lock.unlock() }
-        try requireUsable(grant)
+        try requireNotRevoked(grant)
 
         // At-most-once, durable. The refresh token id is a primary key in the
         // same store the ledger uses, so two refreshes of one token cannot both
         // succeed and a restart does not reopen a spent one. A set in memory
         // would lose exactly the case that matters.
-        let identifier = try LedgerOperationID("cadence.refresh.\(grant.refreshTokenID)")
         let row = try LedgerRow(
-            operationID: identifier,
+            operationID: try Self.refreshKey(grant.refreshTokenID),
             digest: LedgerDigest.over(Array(grant.refreshTokenID.utf8)),
             state: .settledSucceeded,
             sequence: 1
@@ -157,7 +151,6 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         }
 
         let next = grant.generation + 1
-        currentGeneration[grant.familyID] = next
         mintAndZeroizeMaterial(label: "refresh-\(grant.familyID)-\(next)")
         log.append("cadence: refreshed \(grant.familyID) to generation \(next)")
         return CadenceGrant(
@@ -173,8 +166,17 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         audience: CadenceAudience
     ) throws -> CadenceAccessTokenHandle {
         lock.lock(); defer { lock.unlock() }
-        try requireUsable(grant)
-        guard grant.audience == audience, familyAudience[grant.familyID] == audience else {
+        try requireNotRevoked(grant)
+        // Supersession is DERIVED from the durable record, not from a counter
+        // held in memory. A grant is superseded exactly when its refresh token
+        // has been spent, which is one fact in one place and survives a
+        // restart. Tracking a generation counter separately meant a fresh
+        // process knew nothing, so every grant read as superseded and the
+        // restart test passed for the wrong reason entirely.
+        guard try !isRefreshSpent(grant.refreshTokenID) else {
+            throw CadenceOAuthRefusal.supersededGeneration
+        }
+        guard grant.audience == audience else {
             // One audience per token. Presenting it for another is refused, and
             // there is no shape in which it could satisfy both.
             throw CadenceOAuthRefusal.audienceMismatch
@@ -195,20 +197,39 @@ public final class FakeCadenceOAuthBroker: @unchecked Sendable {
         // Whole family, not one generation. Revoking a parent and leaving a
         // child usable is how a revoked grant keeps working through the token
         // it already produced.
-        revokedFamilies.insert(familyID)
+        //
+        // Durable, for the same reason the refresh dedupe is: a revocation
+        // that a restart forgets is not a revocation.
+        let row = try LedgerRow(
+            operationID: try Self.revocationKey(familyID),
+            digest: LedgerDigest.over(Array(familyID.utf8)),
+            state: .settledSucceeded,
+            sequence: 1
+        )
+        _ = try refreshLedger.createIfAbsent(row)
         log.append("cadence: revoked family \(familyID)")
     }
 
-    /// Revocation first, then generation. A revoked family must not report a
-    /// superseded generation instead: the caller needs to know the grant is
-    /// gone, not that it is merely old.
-    private func requireUsable(_ grant: CadenceGrant) throws {
-        guard !revokedFamilies.contains(grant.familyID) else {
+    /// Revocation is checked FIRST everywhere. A revoked family must not report
+    /// a superseded generation instead: the caller needs to know the grant is
+    /// gone, not that it is merely old. Asserting the exact reason in the tests
+    /// is what makes this ordering load-bearing rather than incidental.
+    private func requireNotRevoked(_ grant: CadenceGrant) throws {
+        guard try refreshLedger.row(for: Self.revocationKey(grant.familyID)) == nil else {
             throw CadenceOAuthRefusal.grantRevoked
         }
-        guard currentGeneration[grant.familyID] == grant.generation else {
-            throw CadenceOAuthRefusal.supersededGeneration
-        }
+    }
+
+    private func isRefreshSpent(_ refreshTokenID: String) throws -> Bool {
+        try refreshLedger.row(for: Self.refreshKey(refreshTokenID)) != nil
+    }
+
+    static func refreshKey(_ refreshTokenID: String) throws -> LedgerOperationID {
+        try LedgerOperationID("cadence.refresh.\(refreshTokenID)")
+    }
+
+    static func revocationKey(_ familyID: String) throws -> LedgerOperationID {
+        try LedgerOperationID("cadence.revoked.\(familyID)")
     }
 
     /// Material exists only for the duration of the step that needs it.

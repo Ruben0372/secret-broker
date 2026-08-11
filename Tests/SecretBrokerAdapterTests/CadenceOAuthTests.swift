@@ -43,6 +43,13 @@ struct CadenceOAuthTests {
         )
     }
 
+    // Every refusal below asserts the EXACT reason, not merely that something
+    // was thrown. ARM-29 cost a correction for that gap: a check that only
+    // asserts "refused" cannot tell a reordering from a working guard, and the
+    // reason is also what an operator reads. Asserting it makes the ORDER of
+    // the checks load-bearing, which is where revocation-before-generation
+    // lives.
+
     // MARK: PKCE
 
     @Test("A mismatched code verifier is refused")
@@ -58,7 +65,7 @@ struct CadenceOAuthTests {
             codeChallenge: challenge
         )
 
-        #expect(throws: CadenceOAuthRefusal.self, "a mismatched verifier completed the exchange") {
+        #expect(throws: CadenceOAuthRefusal.codeVerifierMismatch, "a mismatched verifier completed the exchange") {
             _ = try broker.exchange(
                 authorization,
                 codeVerifier: "verifier-beta-fedcba9876543210",
@@ -89,7 +96,7 @@ struct CadenceOAuthTests {
         )
 
         _ = try broker.exchange(authorization, codeVerifier: verifier, audience: .brokerControlPlane)
-        #expect(throws: CadenceOAuthRefusal.self, "an authorization code was redeemed twice") {
+        #expect(throws: CadenceOAuthRefusal.authorizationAlreadyRedeemed, "an authorization code was redeemed twice") {
             _ = try broker.exchange(authorization, codeVerifier: verifier, audience: .brokerControlPlane)
         }
     }
@@ -120,7 +127,7 @@ struct CadenceOAuthTests {
         // failure this whole shape exists to prevent.
         for other in CadenceAudience.allCases where other != grant.audience {
             #expect(
-                throws: CadenceOAuthRefusal.self,
+                throws: CadenceOAuthRefusal.audienceMismatch,
                 "a \(grant.audience.rawValue) token was accepted for \(other.rawValue)"
             ) {
                 _ = try broker.accessToken(for: grant, audience: other)
@@ -138,7 +145,7 @@ struct CadenceOAuthTests {
             route: .cadenceTokenExchange,
             codeChallenge: CadencePKCE.challenge(forVerifier: verifier)
         )
-        #expect(throws: CadenceOAuthRefusal.self, "an audience was substituted at exchange time") {
+        #expect(throws: CadenceOAuthRefusal.audienceMismatch, "an audience was substituted at exchange time") {
             _ = try broker.exchange(second, codeVerifier: verifier, audience: .cadenceReadOnly)
         }
     }
@@ -171,7 +178,7 @@ struct CadenceOAuthTests {
         #expect(second.familyID == first.familyID, "a refresh started a new token family")
 
         // The superseded generation is refused everywhere, not merely ignored.
-        #expect(throws: CadenceOAuthRefusal.self, "a superseded generation still minted an access token") {
+        #expect(throws: CadenceOAuthRefusal.supersededGeneration, "a superseded generation still minted an access token") {
             _ = try broker.accessToken(for: first, audience: .brokerControlPlane)
         }
 
@@ -191,7 +198,7 @@ struct CadenceOAuthTests {
         let grant = try Self.grant(from: broker, verifier: "verifier-ambiguity-0123456789ab")
 
         _ = try broker.refresh(grant)
-        #expect(throws: CadenceOAuthRefusal.self, "one refresh token was redeemed twice") {
+        #expect(throws: CadenceOAuthRefusal.refreshAlreadyRedeemed, "one refresh token was redeemed twice") {
             _ = try broker.refresh(grant)
         }
     }
@@ -213,8 +220,31 @@ struct CadenceOAuthTests {
         // A NEW broker over the same ledger. At-most-once is a durable primary
         // key, not a set in memory, so a restart does not reopen the refresh.
         let restarted = FakeCadenceOAuthBroker(refreshLedger: try SQLiteLedgerStore(path: path))
-        #expect(throws: CadenceOAuthRefusal.self, "a restart reopened a spent refresh token") {
+        #expect(throws: CadenceOAuthRefusal.refreshAlreadyRedeemed, "a restart reopened a spent refresh token") {
             _ = try restarted.refresh(grant)
+        }
+
+        // THE CONTROL THAT MATTERS, and its absence hid a real defect. Without
+        // it this test passed while the restarted broker refused EVERY grant,
+        // because supersession was tracked in a memory the new process did not
+        // have. Refusing everything satisfies "a spent token stays spent" and
+        // is also completely broken, so the refusal above only means something
+        // alongside a grant that still works.
+        let unspent = try Self.grant(from: restarted, verifier: "verifier-durable-unspent-01234")
+        let handle = try restarted.accessToken(for: unspent, audience: .brokerControlPlane)
+        #expect(handle.familyID == unspent.familyID)
+
+        // And a grant minted before the restart, whose refresh token was never
+        // spent, must also still work. This is the case a memory-only broker
+        // gets wrong in the other direction.
+        let survivor: CadenceGrant
+        do {
+            let earlier = FakeCadenceOAuthBroker(refreshLedger: try SQLiteLedgerStore(path: path))
+            survivor = try Self.grant(from: earlier, verifier: "verifier-durable-survivor-0123")
+        }
+        let afterRestart = FakeCadenceOAuthBroker(refreshLedger: try SQLiteLedgerStore(path: path))
+        #expect(throws: Never.self, "a grant minted before a restart stopped working after it") {
+            _ = try afterRestart.accessToken(for: survivor, audience: .brokerControlPlane)
         }
     }
 
@@ -233,10 +263,10 @@ struct CadenceOAuthTests {
 
         try broker.revoke(familyID: grant.familyID)
 
-        #expect(throws: CadenceOAuthRefusal.self, "a revoked family still minted an access token") {
+        #expect(throws: CadenceOAuthRefusal.grantRevoked, "a revoked family still minted an access token") {
             _ = try broker.accessToken(for: grant, audience: .brokerControlPlane)
         }
-        #expect(throws: CadenceOAuthRefusal.self, "a revoked family still refreshed") {
+        #expect(throws: CadenceOAuthRefusal.grantRevoked, "a revoked family still refreshed") {
             _ = try broker.refresh(grant)
         }
 
@@ -257,7 +287,7 @@ struct CadenceOAuthTests {
         let child = try broker.refresh(parent)
 
         try broker.revoke(familyID: parent.familyID)
-        #expect(throws: CadenceOAuthRefusal.self, "a child of a revoked family still worked") {
+        #expect(throws: CadenceOAuthRefusal.grantRevoked, "a child of a revoked family still worked") {
             _ = try broker.accessToken(for: child, audience: .brokerControlPlane)
         }
     }
@@ -280,7 +310,7 @@ struct CadenceOAuthTests {
 
         // Consuming again is refused rather than returning a digest over zeros,
         // which would look like a working call and be meaningless.
-        #expect(throws: CadenceOAuthRefusal.self, "spent material was consumed a second time") {
+        #expect(throws: CadenceOAuthRefusal.materialAlreadyConsumed, "spent material was consumed a second time") {
             _ = try material.consumeComputingDigest()
         }
     }
@@ -328,7 +358,7 @@ struct CadenceOAuthTests {
             route: .cadenceRevocation,
             codeChallenge: CadencePKCE.challenge(forVerifier: verifier)
         )
-        #expect(throws: CadenceOAuthRefusal.self, "an authorization was exchanged on a route it was not opened for") {
+        #expect(throws: CadenceOAuthRefusal.routeMismatch, "an authorization was exchanged on a route it was not opened for") {
             _ = try broker.exchange(authorization, codeVerifier: verifier, audience: .brokerControlPlane)
         }
     }
@@ -416,10 +446,10 @@ struct CadenceOAuthTests {
     func realIntegrationIsAStopGate() {
         #expect(FakeCadenceOAuthBroker.isRealIntegrationEnabled == false)
         #expect(!FakeCadenceOAuthBroker.realIntegrationStopGate.isEmpty)
-        #expect(throws: CadenceOAuthRefusal.self, "a real Cadence broker was constructed") {
+        #expect(throws: CadenceOAuthRefusal.realIntegrationDisabled, "a real Cadence broker was constructed") {
             _ = try FakeCadenceOAuthBroker.liveCadenceBroker(endpointIdentifier: "would-be-real")
         }
-        #expect(throws: CadenceOAuthRefusal.self, "an owner grant was created") {
+        #expect(throws: CadenceOAuthRefusal.ownerGrantCreationDisabled, "an owner grant was created") {
             _ = try FakeCadenceOAuthBroker.createOwnerGrant(ownerIdentifier: "would-be-owner")
         }
     }
