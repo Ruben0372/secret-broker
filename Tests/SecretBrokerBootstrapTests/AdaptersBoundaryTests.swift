@@ -83,6 +83,11 @@ struct AdaptersBoundaryTests {
     static let reviewedNonFakeSources: Set<String> = [
         "KeychainStore.swift", "SQLiteLedger.swift",
         "SignalMessage.swift", "SignalReceipt.swift", "SignalInbox.swift",
+        // ARM-30 adds the fake Cadence OAuth lifecycle. Named individually for
+        // the same reason as the Signal entries: a directory-shaped exemption
+        // is how the next unreviewed adapter arrives. Real integration is a
+        // stop gate that this code refuses to cross.
+        "CadenceOAuthTypes.swift", "FakeCadenceOAuthBroker.swift",
     ]
 
     @Test("Adapters ship fakes only, apart from explicitly reviewed sources")
